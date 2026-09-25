@@ -1,0 +1,1 @@
+{ "extends": "@pandora/config/tsconfig.base.json", "include": ["src"] }

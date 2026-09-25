@@ -1,0 +1,18 @@
+{
+  "name": "pandora",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "node scripts/check-boundaries.mjs && turbo run lint",
+    "test": "vitest run --dir scripts && turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.0",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.0"
+  }
+}
