@@ -1,2 +1,3 @@
-// Email templates and sending arrive with the Registration and Operations spec.
-export {};
+export { getTransport, sendEmail } from "./send";
+export { fileTransport, resendTransport, type MailMessage, type MailTransport } from "./transport";
+export { templates, type TemplateName, type TemplateProps } from "./registry";

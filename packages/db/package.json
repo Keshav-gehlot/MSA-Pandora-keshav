@@ -3,16 +3,34 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "typecheck": "tsc --noEmit", "lint": "eslint ." },
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./test-utils": "./src/test-utils.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed": "tsx scripts/seed.ts"
+  },
   "dependencies": {
+    "@pandora/core": "workspace:*",
+    "@supabase/supabase-js": "^2.117.0",
     "drizzle-orm": "^0.45.0",
-    "postgres": "^3.4.9"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.0",
     "@pandora/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.0",
     "drizzle-kit": "^0.31.0",
     "eslint": "^9.0.0",
-    "typescript": "~5.9.3"
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.0"
   }
 }

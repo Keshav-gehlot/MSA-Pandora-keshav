@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DB_DRIVERS = ["drizzle-orm", "drizzle-kit", "postgres", "pg"];
+const DB_DRIVERS = ["drizzle-orm", "drizzle-kit", "postgres", "pg", "@electric-sql/pglite"];
 const DATA_ACCESS_CLIENTS = ["@supabase/supabase-js", "@prisma/client", "kysely", "mysql2", "@vercel/postgres"];
 const isFrameworkDep = (dep) =>
   dep === "react" ||

@@ -57,8 +57,41 @@ jobs:
           done
           echo "apps=[$(IFS=,; echo "${apps[*]}")]" >> "$GITHUB_OUTPUT"
 
-  deploy:
+  # Apply database migrations to the target environment before any app deploys against it.
+  migrate:
     needs: plan
+    if: needs.plan.outputs.apps != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VERCEL_PROJECT_ID: prj_BMnZe3rs4aSPKr0TOljEIIVuz8DB
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+    steps:
+      - name: Require the VERCEL_TOKEN secret
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::Add a repository secret named VERCEL_TOKEN (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Pull the target environment's variables
+        run: npx --yes vercel@latest pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
+      - name: Apply migrations
+        run: |
+          set -a; . ".vercel/.env.$TARGET.local"; set +a
+          if [ -z "${DATABASE_MIGRATE_URL:-$DATABASE_URL}" ]; then
+            echo "::warning::Neither DATABASE_MIGRATE_URL nor DATABASE_URL is set for $TARGET in Vercel; skipping migrations."
+            exit 0
+          fi
+          pnpm --filter @pandora/db migrate
+
+  deploy:
+    needs: [plan, migrate]
     if: needs.plan.outputs.apps != '[]'
     name: deploy (${{ matrix.app }})
     runs-on: ubuntu-latest
