@@ -4,8 +4,10 @@ Every email Pandora sends (OTP codes, registration confirmations, payment decisi
 sends them through Resend. Issues carry the `area:email` label.
 
 - Templates are code in this package, never strings built inside an app.
-- Add a template: create `src/templates/<name>.tsx` exporting `{ subject, text, html }` (each takes the template's
-  props), then add one line to `src/registry.ts`. Apps send it with `sendEmail({ to, template: "<name>", props })`.
+- Add a template: create `src/templates/<flow>/<name>.tsx` exporting `{ subject, text, html }` (each takes the
+  template's props), then add it to the object in `src/templates/<flow>/index.ts`. Flows never edit `registry.ts`.
+  Prefix template names with the flow (`registration-received`, `admin-payment-approved`) so they can't collide.
+  Apps send it with `sendEmail({ to, template: "<name>", props })`.
 - Sending goes through `sendEmail`, so tests and local development can capture mail instead of sending it.
 - Never log OTP codes or full email addresses.
 

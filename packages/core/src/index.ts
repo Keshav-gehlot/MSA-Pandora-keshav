@@ -18,3 +18,8 @@ export {
   type RegistrationInput,
 } from "./rules";
 export { applyChanges, diffTeam, type FieldChange, type TeamSnapshot } from "./diff";
+// One file per flow, so flow owners don't edit the same file.
+export * from "./flows/registration";
+export * from "./flows/participant";
+export * from "./flows/admin";
+export * from "./flows/checkin";
