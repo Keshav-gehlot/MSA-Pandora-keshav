@@ -1,0 +1,13 @@
+# gitleaks config for the `secrets` job in .github/workflows/pr-hygiene.yml. See docs/tech/gitleaks.md.
+# Starts from gitleaks' built-in rules; the allowlist below is deliberately narrow (one file AND one pattern).
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake database URLs (user u / password p, user user / password secret) in the seed script's tests"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^packages/db/scripts/seed-lib\.test\.ts$''']
+# \x40 is "@", written that way so this file doesn't itself look like a database URL to scan-secrets.mjs.
+regexes = ['''postgres://(?:u:p|user:secret)\x40''']

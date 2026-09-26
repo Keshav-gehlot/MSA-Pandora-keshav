@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (or superpowers:subagent-driven-development) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax. Read `AGENTS.md` (root) and the `AGENTS.md` of every folder you touch first. Teaching mode applies.
 
-**Owners:** Ujaan Basu (C1, C3) and Ritwik Negi (C2, C4-C8) — a suggested split; Ojas assigns. **Milestone:** M2 Shortlisting (Episode 0).
+**Owners:** Ujaan Basu and Ritwik Negi, jointly on every task. Before starting a task, agree who drives it and say so in a comment on its issue. **Milestone:** M2 Shortlisting (Episode 0).
 
 **Goal:** Admins sign in to the console with a one-time code and take a registration from payment review through shortlisting, without touching the database directly. Every decision is recorded.
 
-**Architecture:** Schemas in `packages/core/src/flows/admin.ts`; read-only queries (overview, team list and detail, export) in `packages/db/src/queries/admin.ts` (Ujaan); decision queries (payments, edit requests, notices, Episode 0, shortlist, audit) in `packages/db/src/queries/admin-review.ts` (Ritwik); emails in `packages/email/src/templates/admin/`; pages and Server Actions in `apps/console/src/app/**` and `apps/console/src/features/admin/**`.
+**Architecture:** Schemas in `packages/core/src/flows/admin.ts`; read-only queries (overview, team list and detail, export) in `packages/db/src/queries/admin.ts`; decision queries (payments, edit requests, notices, Episode 0, shortlist, audit) in `packages/db/src/queries/admin-review.ts`. Two files so the two of you can work in parallel without conflicts; emails in `packages/email/src/templates/admin/`; pages and Server Actions in `apps/console/src/app/**` and `apps/console/src/features/admin/**`.
 
 **Tech Stack:** Next.js 16, zod 4, Drizzle, Astryx (its `AppShell`/`SideNav` suit the console layout).
 
@@ -16,8 +16,8 @@
 Logic tasks give exact signatures and tests (tests first). Screen tasks give behaviour and a checklist. Your files are already wired into the package exports; never edit other flows' files, `registry.ts` or package `index.ts` files.
 
 ## Global Constraints
-- Ujaan edits: `packages/db/src/queries/admin.ts` (+ test), `apps/console/src/app/sign-in/**`, `apps/console/src/app/layout.tsx` body/nav, `apps/console/src/app/page.tsx`, `apps/console/src/app/teams/**`, `apps/console/src/app/export/**`, `apps/console/src/features/admin/{sign-in,shell,teams}/**`.
-- Ritwik edits: `packages/core/src/flows/admin.ts` (+ test), `packages/db/src/queries/admin-review.ts` (+ test), `packages/email/src/templates/admin/**`, `apps/console/src/app/{payments,edits,notices,episode-0}/**`, `apps/console/src/features/admin/{review,notices,episode-0}/**`.
+- Tasks C1 and C3 edit: `packages/db/src/queries/admin.ts` (+ test), `apps/console/src/app/sign-in/**`, `apps/console/src/app/layout.tsx` body/nav, `apps/console/src/app/page.tsx`, `apps/console/src/app/teams/**`, `apps/console/src/app/export/**`, `apps/console/src/features/admin/{sign-in,shell,teams}/**`.
+- Tasks C2 and C4-C8 edit: `packages/core/src/flows/admin.ts` (+ test), `packages/db/src/queries/admin-review.ts` (+ test), `packages/email/src/templates/admin/**`, `apps/console/src/app/{payments,edits,notices,episode-0}/**`, `apps/console/src/features/admin/{review,notices,episode-0}/**`.
 - Every console page and action begins with `const admin = await requireStaff("admin");` except the sign-in page and `/` (which routes: admins see the overview, staff are redirected to `/staff`, Flow D's area). Never add a public page.
 - `/` must never itself call `requireStaff("admin")`: `requireStaff("admin")` redirects non-admins to `/`, so `/` would loop. Use `requireStaff()` there and branch on `role`.
 - Every decision (payment, edit request, notice, score, shortlist) writes an `admin_actions` row via `recordAdminAction`, in the same transaction as the change.
@@ -27,7 +27,7 @@ Logic tasks give exact signatures and tests (tests first). Screen tasks give beh
 
 ---
 
-### Task C1 (Ujaan): Console sign-in and shell
+### Task C1: Console sign-in and shell
 
 **Files:** `apps/console/src/features/admin/sign-in/actions.ts` (`"use server"`), `apps/console/src/app/sign-in/page.tsx`, `apps/console/src/features/admin/shell/*`, `apps/console/src/app/page.tsx`.
 
@@ -44,7 +44,7 @@ Same behaviour as participant sign-in (Flow B, Task B3) with `purpose: "staff_si
 
 ---
 
-### Task C2 (Ritwik): Admin schemas and CSV escaping
+### Task C2: Admin schemas and CSV escaping
 
 **Files:** `packages/core/src/flows/admin.ts`, test `packages/core/src/flows/admin.test.ts`.
 
@@ -89,7 +89,7 @@ describe("csvCell", () => {
 
 ---
 
-### Task C3 (Ujaan): Overview, teams and export
+### Task C3: Overview, teams and export
 
 **Files:** `packages/db/src/queries/admin.ts` (+ `admin.test.ts`); pages `apps/console/src/app/page.tsx` (overview for admins), `apps/console/src/app/teams/page.tsx`, `apps/console/src/app/teams/[teamId]/page.tsx`, `apps/console/src/app/export/route.ts` (CSV download, admin-only).
 
@@ -163,7 +163,7 @@ describe("admin read queries", () => {
 
 ---
 
-### Task C4 (Ritwik): Payment review
+### Task C4: Payment review
 
 **Files:** `packages/db/src/queries/admin-review.ts` (+ `admin-review.test.ts`), `packages/email/src/templates/admin/{payment-approved,payment-declined}.tsx` (+ tests, registered in `templates/admin/index.ts` as `"admin-payment-approved"` / `"admin-payment-declined"`), `apps/console/src/app/payments/page.tsx`, `apps/console/src/features/admin/review/payment-actions.ts`.
 
@@ -204,7 +204,7 @@ Email tests: subjects `"Alpha: registration confirmed"` and `"Alpha: payment nee
 
 ---
 
-### Task C5 (Ritwik): Edit request review
+### Task C5: Edit request review
 
 **Files:** add to `admin-review.ts` (+ tests), `packages/email/src/templates/admin/edit-decided.tsx` (`"admin-edit-decided"`, props `{ teamName; approved: boolean; note: string | null }`), `apps/console/src/app/edits/page.tsx`, `apps/console/src/features/admin/review/edit-actions.ts`.
 
@@ -228,7 +228,7 @@ Behaviour (one transaction): conditional status update as in C4; on approve, `ap
 
 ---
 
-### Task C6 (Ritwik): Notices
+### Task C6: Notices
 
 **Files:** add `createNotification(db, { staffId, teamId: string | null, title, body }): Promise<{ id: string }>` (records `notification.created`) to `admin-review.ts` (+ test: an all-team notice and a single-team notice both stored with the audit row); `apps/console/src/app/notices/page.tsx` + action.
 - [ ] Page checklist: compose (title, body, "all teams" or a searchable team picker), `notificationSchema` validation, list of sent notices newest first.
@@ -236,7 +236,7 @@ Behaviour (one transaction): conditional status update as in C4; on approve, `ap
 
 ---
 
-### Task C7 (Ritwik): Episode 0 review and shortlisting
+### Task C7: Episode 0 review and shortlisting
 
 **Files:** add to `admin-review.ts` (+ tests): 
 ```ts
@@ -250,7 +250,7 @@ Pages: `apps/console/src/app/episode-0/page.tsx` — table sorted by score, scor
 
 ---
 
-### Task C8 (Ritwik): Issue event passes on shortlisting
+### Task C8: Issue event passes on shortlisting
 
 **Depends on:** Flow D Task D2 merged (`issuePassesForTeam`).
 - [ ] In the shortlist action, after `setShortlistStatus(..., "shortlisted")` succeeds, call `issuePassesForTeam(getDb(), { teamId, secret: process.env.PASS_SECRET! })` and send Flow D's `"checkin-pass-ready"` email to each member. Show a warning (not an error) if `PASS_SECRET` isn't configured.

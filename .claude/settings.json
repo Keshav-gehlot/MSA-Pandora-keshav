@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git commit --no-verify:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(printenv:*)",
+      "Bash(env)",
+      "Bash(rm -rf:*)"
+    ],
+    "allow": [
+      "Bash(pnpm lint)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm build)",
+      "Bash(pnpm agent:brief:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)"
+    ]
+  }
+}

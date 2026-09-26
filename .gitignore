@@ -12,3 +12,6 @@ next-env.d.ts
 .mail/
 .storage/
 .pglite/
+
+# Personal AI tool settings
+.claude/settings.local.json

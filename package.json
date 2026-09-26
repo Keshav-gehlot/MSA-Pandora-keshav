@@ -8,9 +8,12 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "node scripts/check-boundaries.mjs && turbo run lint",
-    "test": "vitest run --dir scripts && turbo run test"
+    "test": "vitest run --dir scripts && turbo run test",
+    "agent:brief": "node scripts/agent-brief.mjs",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
+    "lefthook": "^1.13.6",
     "turbo": "^2.11.0",
     "typescript": "~5.9.3",
     "vitest": "^3.2.0"

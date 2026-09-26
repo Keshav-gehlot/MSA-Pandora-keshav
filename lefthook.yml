@@ -1,0 +1,20 @@
+# Git hooks, installed by `pnpm install` (the root "prepare" script runs `lefthook install`).
+# What each one does and why: docs/tech/lefthook.md. Never skip them with --no-verify.
+pre-commit:
+  parallel: true
+  commands:
+    secrets:
+      run: node scripts/hooks/scan-secrets.mjs --staged
+    boundaries:
+      run: node scripts/check-boundaries.mjs
+
+commit-msg:
+  commands:
+    no-ai-attribution:
+      run: node scripts/hooks/check-commit-message.mjs {1}
+
+pre-push:
+  commands:
+    protect-main:
+      run: node scripts/hooks/protect-main.mjs
+      use_stdin: true
