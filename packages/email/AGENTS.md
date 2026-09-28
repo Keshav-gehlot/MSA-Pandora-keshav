@@ -15,8 +15,8 @@ sends them through Resend. Issues carry the `area:email` label.
 
 | Variable | Meaning |
 |---|---|
-| `MAIL_TRANSPORT` | `resend` sends for real; anything else writes to `MAIL_OUTBOX_PATH`. Must be `resend` on Vercel. |
+| `MAIL_TRANSPORT` | `resend` sends for real; anything else writes to `MAIL_OUTBOX_PATH`. Must be `resend` when deployed (`DEPLOY_TARGET` set). |
 | `MAIL_OUTBOX_PATH` | Local outbox file, one JSON line per message (default `.mail/outbox.jsonl`). |
-| `RESEND_API_KEY` | Resend API key. Required on Vercel. |
+| `RESEND_API_KEY` | Resend API key. Required when deployed (`DEPLOY_TARGET` set). |
 | `EMAIL_FROM` | Sender address, default `MSA Pandora <pandora@recruitments.msasrm.in>`. |
-| `MAIL_ALLOWLIST` | Comma-separated recipients. When set, mail to anyone else is skipped. On previews (`VERCEL_ENV=preview`) an empty list skips everything. |
+| `MAIL_ALLOWLIST` | Comma-separated recipients. When set, mail to anyone else is skipped. On previews (`DEPLOY_TARGET=preview`, set by `wrangler.jsonc`'s preview environment) an empty list skips everything. |

@@ -1,4 +1,4 @@
-export { createDb, getDb, type Db } from "./client";
+export { createDb, type Db } from "./client";
 export { uniqueViolationField, type UniqueField } from "./errors";
 export {
   claimVerifiedOtp,

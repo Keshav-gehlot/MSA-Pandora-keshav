@@ -49,12 +49,13 @@ export function supabaseStorage({ url, secretKey, bucket = STORAGE_BUCKET }: { u
 let cached: Storage | undefined;
 export function getStorage(): Storage {
   if (cached) return cached;
-  const { SUPABASE_URL: url, SUPABASE_SECRET_KEY: secretKey, VERCEL } = process.env;
+  const { SUPABASE_URL: url, SUPABASE_SECRET_KEY: secretKey, DEPLOY_TARGET } = process.env;
   if (url && secretKey) {
     cached = supabaseStorage({ url, secretKey });
-  } else if (VERCEL) {
-    // Vercel's disk is temporary and per-instance: uploads written there would be lost.
-    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set on Vercel");
+  } else if (DEPLOY_TARGET) {
+    // A deployed instance's disk is temporary and per-instance (or, on Workers, virtual): uploads written there
+    // would be lost.
+    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set when deployed (DEPLOY_TARGET is set)");
   } else {
     cached = diskStorage(".storage");
   }

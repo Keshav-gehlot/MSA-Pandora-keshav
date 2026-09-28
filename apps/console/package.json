@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --port 3001",
     "typecheck": "next typegen && tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && wrangler dev"
   },
   "dependencies": {
     "@pandora/core": "workspace:*",
@@ -20,11 +22,13 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.0.0",
     "@pandora/config": "workspace:*",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "eslint": "^9.0.0",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "wrangler": "^4.0.0"
   }
 }

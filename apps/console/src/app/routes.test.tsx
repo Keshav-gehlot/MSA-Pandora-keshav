@@ -6,6 +6,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // where the JSX transform targets React.createElement.
 (globalThis as unknown as { React: typeof React }).React = React;
 
+// The pages import the user menu, which imports the sign-in Server Actions, which import lib/cf-db ("server-only").
+vi.mock("server-only", () => ({}));
+
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`);
 });

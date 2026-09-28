@@ -22,7 +22,7 @@ describe("diskStorage", () => {
 });
 
 describe("getStorage", () => {
-  const KEYS = ["VERCEL", "SUPABASE_URL", "SUPABASE_SECRET_KEY"] as const;
+  const KEYS = ["DEPLOY_TARGET", "SUPABASE_URL", "SUPABASE_SECRET_KEY"] as const;
   let saved: Partial<Record<(typeof KEYS)[number], string>>;
   beforeEach(() => {
     saved = {};
@@ -40,14 +40,14 @@ describe("getStorage", () => {
   });
   const load = async () => (await import("./storage")).getStorage;
 
-  it("uses disk storage off Vercel when Supabase isn't configured", async () => {
+  it("uses disk storage when not deployed and Supabase isn't configured", async () => {
     expect((await load())()).toBeDefined();
   });
-  it("refuses to fall back to disk on Vercel", async () => {
-    process.env.VERCEL = "1";
+  it("refuses to fall back to disk when deployed", async () => {
+    process.env.DEPLOY_TARGET = "production";
     const getStorage = await load();
-    expect(() => getStorage()).toThrow("SUPABASE_URL and SUPABASE_SECRET_KEY must be set on Vercel");
+    expect(() => getStorage()).toThrow("SUPABASE_URL and SUPABASE_SECRET_KEY must be set when deployed (DEPLOY_TARGET is set)");
     process.env.SUPABASE_URL = "https://example.supabase.co";
-    expect(() => getStorage()).toThrow("SUPABASE_URL and SUPABASE_SECRET_KEY must be set on Vercel");
+    expect(() => getStorage()).toThrow("SUPABASE_URL and SUPABASE_SECRET_KEY must be set when deployed (DEPLOY_TARGET is set)");
   });
 });

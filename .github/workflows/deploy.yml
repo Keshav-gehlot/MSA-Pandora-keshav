@@ -1,12 +1,11 @@
-# Deploys both apps to Vercel from GitHub Actions.
-# Vercel's own GitHub integration needs a paid plan for private organization repos, so instead
-# we build here and upload the prebuilt output with the Vercel CLI (allowed on the Hobby plan).
-# Pull requests get preview deployments with a short, stable alias (commented on the PR);
-# merges to main go to production. Every deploy is recorded as a GitHub deployment, so it shows
-# in the repo's Deployments panel and on the pull request.
+# Deploys both apps to Cloudflare Workers from GitHub Actions, via the OpenNext adapter.
+# Pull requests get their own disposable Worker with a stable URL for the PR's lifetime (commented on the PR,
+# deleted when the PR closes); merges to main deploy the production Worker.
 name: deploy
 on:
   pull_request:
+    # "closed" isn't in pull_request's default types; pr-preview-cleanup needs it.
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
   workflow_dispatch: # "Run workflow" button in the Actions tab: deploys both apps to production
@@ -15,13 +14,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
-  deployments: write
   pull-requests: write
-env:
-  VERCEL_ORG_ID: team_ctPt2EEwbsf2qlZbCgsCZdPL
+# CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are set only on the steps that run wrangler, not workflow-wide, so
+# installs, lifecycle scripts and turbo-ignore never see the account-wide token.
 jobs:
   # Decide which apps this change affects, so unaffected apps don't deploy at all.
   plan:
+    # A closed PR has nothing to build; only pr-preview-cleanup runs then (migrate and deploy need plan).
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -46,10 +46,10 @@ jobs:
             force=true
           fi
           apps=()
-          for entry in "web:prj_BMnZe3rs4aSPKr0TOljEIIVuz8DB:pandora" "console:prj_dApHhJkfMFiBhCTf8yvRTkAsYASE:pandora-console"; do
-            IFS=: read -r app project_id alias_prefix <<< "$entry"
+          for entry in "web:pandora-web" "console:pandora-console"; do
+            IFS=: read -r app worker_name <<< "$entry"
             if [ "$force" = true ] || ! npx --yes turbo-ignore "@pandora/$app" --fallback="$BASE" > /dev/null 2>&1; then
-              apps+=("{\"app\":\"$app\",\"project_id\":\"$project_id\",\"alias_prefix\":\"$alias_prefix\"}")
+              apps+=("{\"app\":\"$app\",\"worker_name\":\"$worker_name\"}")
               echo "### $app: deploying" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "### $app: skipped (no changes affect it)" >> "$GITHUB_STEP_SUMMARY"
@@ -63,29 +63,20 @@ jobs:
     if: needs.plan.outputs.apps != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: ${{ github.event_name == 'pull_request' && 'preview-web' || 'production-web' }}
     env:
-      VERCEL_PROJECT_ID: prj_BMnZe3rs4aSPKr0TOljEIIVuz8DB
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
+      DATABASE_MIGRATE_URL: ${{ secrets.DATABASE_MIGRATE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
-      - name: Require the VERCEL_TOKEN secret
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::Add a repository secret named VERCEL_TOKEN (Settings > Secrets and variables > Actions)."
-            exit 1
-          fi
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - name: Pull the target environment's variables
-        run: npx --yes vercel@latest pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
       - name: Apply migrations
         run: |
-          set -a; . ".vercel/.env.$TARGET.local"; set +a
           if [ -z "${DATABASE_MIGRATE_URL:-$DATABASE_URL}" ]; then
-            echo "::warning::Neither DATABASE_MIGRATE_URL nor DATABASE_URL is set for $TARGET in Vercel; skipping migrations."
+            echo "::warning::Neither DATABASE_MIGRATE_URL nor DATABASE_URL is set for this environment; skipping migrations."
             exit 0
           fi
           pnpm --filter @pandora/db migrate
@@ -101,40 +92,83 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.apps) }}
     environment:
-      name: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}-${{ matrix.app }}
-      url: ${{ steps.deploy.outputs.url }}
-    env:
-      VERCEL_PROJECT_ID: ${{ matrix.project_id }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      TARGET: ${{ github.event_name == 'pull_request' && 'preview' || 'production' }}
-      PROD_FLAG: ${{ github.event_name == 'pull_request' && '' || '--prod' }}
+      name: ${{ github.event_name == 'pull_request' && format('preview-{0}', matrix.app) || format('production-{0}', matrix.app) }}
     steps:
-      - name: Require the VERCEL_TOKEN secret
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::Add a repository secret named VERCEL_TOKEN (Settings > Secrets and variables > Actions)."
-            exit 1
-          fi
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - name: Pull Vercel project settings
-        run: npx --yes vercel@latest pull --yes --environment="$TARGET" --token="$VERCEL_TOKEN"
+      - run: pnpm install --frozen-lockfile
       - name: Build
-        run: npx --yes vercel@latest build $PROD_FLAG --token="$VERCEL_TOKEN"
+        run: pnpm --filter @pandora/${{ matrix.app }} run cf:build
+      - name: Determine the Worker name for this deploy
+        id: name
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "worker_name=${{ matrix.worker_name }}-pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "worker_name=${{ matrix.worker_name }}" >> "$GITHUB_OUTPUT"
+          fi
+          # The wrangler.jsonc environment to deploy with: it sets DEPLOY_TARGET and the Hyperdrive binding.
+          ENV_FLAG=$( [ "$GITHUB_EVENT_NAME" = "pull_request" ] && echo "preview" || echo "production" )
+          echo "env=$ENV_FLAG" >> "$GITHUB_OUTPUT"
+      # Deploy before pushing secrets: `wrangler secret bulk` needs the Worker to exist, and a new PR's Worker only
+      # exists once its first deploy has run. The cost is that a brand-new PR Worker's very first deploy briefly
+      # runs without its secrets; every later push to the PR redeploys the already-existing Worker.
       - name: Deploy
         id: deploy
+        working-directory: apps/${{ matrix.app }}
+        shell: bash
         env:
-          ALIAS: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}.vercel.app', matrix.alias_prefix, github.event.pull_request.number) || '' }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # `opennextjs-cloudflare deploy` resolves bindings through wrangler's local-proxy path even for a real
+          # deploy, so it insists a Hyperdrive binding has a "local" connection string configured, separate from
+          # the binding actually used at runtime. This value only feeds that local-proxy check in this CI job; it
+          # never reaches the deployed Worker (Hyperdrive's own config, created once via `wrangler hyperdrive
+          # create`, is what's used at runtime).
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: ${{ secrets.DATABASE_URL }}
         run: |
-          url=$(npx --yes vercel@latest deploy --prebuilt $PROD_FLAG --token="$VERCEL_TOKEN")
-          if [ -n "$ALIAS" ]; then
-            npx --yes vercel@latest alias set "$url" "$ALIAS" --token="$VERCEL_TOKEN" > /dev/null
-            url="https://$ALIAS"
+          set -o pipefail
+          log="$RUNNER_TEMP/wrangler-deploy.log"
+          # pipefail makes a failed wrangler deploy fail this step, instead of the pipeline reporting tee's status.
+          pnpm exec wrangler deploy --name "${{ steps.name.outputs.worker_name }}" --env "${{ steps.name.outputs.env }}" 2>&1 | tee "$log"
+          url=$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' "$log" | tail -n1 || true)
+          if [ -z "$url" ]; then
+            echo "::error::wrangler deploy produced no URL — see the log above for the actual error."
+            exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "### ${{ matrix.app }} ($TARGET): $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ${{ matrix.app }}: $url" >> "$GITHUB_STEP_SUMMARY"
+      # DATABASE_URL isn't pushed: at runtime the app reaches the database through the Hyperdrive binding in
+      # wrangler.jsonc, which holds the connection string itself. DATABASE_MIGRATE_URL is still pushed (per the
+      # spec's 2026-09-29 amendment), though only migrate.ts, run by the migrate job in Node, reads it.
+      - name: Push secrets to the Worker
+        working-directory: apps/${{ matrix.app }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_MIGRATE_URL: ${{ secrets.DATABASE_MIGRATE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          MAIL_TRANSPORT: ${{ secrets.MAIL_TRANSPORT }}
+          PASS_SECRET: ${{ secrets.PASS_SECRET }}
+          MAIL_ALLOWLIST: ${{ secrets.MAIL_ALLOWLIST }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          json="{}"
+          for key in DATABASE_MIGRATE_URL RESEND_API_KEY EMAIL_FROM MAIL_TRANSPORT PASS_SECRET MAIL_ALLOWLIST SUPABASE_URL SUPABASE_SECRET_KEY; do
+            value="${!key:-}"
+            if [ -n "$value" ]; then
+              json=$(node -e "const o=$json; o[process.argv[1]]=process.argv[2]; console.log(JSON.stringify(o))" "$key" "$value")
+            fi
+          done
+          # No --env here: `wrangler secret bulk --name X --env E` targets a *different* Worker (X-E), not the
+          # one `wrangler deploy --name X --env E` just deployed — secrets are per-Worker, and --name already
+          # identifies it (confirmed against wrangler 4.143.0's source: `secret bulk` resolves its target as
+          # `${name}-${env}` when both flags are given, while `deploy` resolves it as plain `name`).
+          echo "$json" | pnpm exec wrangler secret bulk --name "${{ steps.name.outputs.worker_name }}"
       - name: Comment the preview link on the pull request
         if: github.event_name == 'pull_request'
         env:
@@ -152,3 +186,41 @@ jobs:
           else
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
           fi
+
+  # Deletes a PR's preview Workers when the PR closes (merged or not), so closed PRs don't leave live Workers
+  # (and their secrets) behind. Cloudflare has no automatic preview expiry the way Vercel did.
+  pr-preview-cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Checkout and install so `pnpm exec wrangler` uses the same pinned wrangler as the deploy job.
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Delete this PR's Workers
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # A PR that only touched one app never deployed the other app's Worker, so "doesn't exist" is expected
+          # and fine. Any other failure (bad token, API outage) fails the job, so leftover Workers get noticed.
+          # The "doesn't exist" check matches wrangler's error text (and Cloudflare's script-not-found code, 10007);
+          # if that wording ever changes, this fails loudly rather than silently leaving a Worker behind.
+          failed=0
+          for name in "pandora-web-pr-${{ github.event.pull_request.number }}" "pandora-console-pr-${{ github.event.pull_request.number }}"; do
+            if out=$(pnpm exec wrangler delete --name "$name" --force 2>&1); then
+              echo "$out"
+            elif echo "$out" | grep -qiE 'does not exist|not found|10007'; then
+              echo "$out"
+              echo "$name doesn't exist (never deployed, or already deleted); nothing to clean up."
+            else
+              echo "$out"
+              echo "::error::Failed to delete $name."
+              failed=1
+            fi
+          done
+          exit "$failed"

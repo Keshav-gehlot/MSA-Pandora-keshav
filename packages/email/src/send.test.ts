@@ -11,7 +11,7 @@ const capture: MailTransport = { async send(msg) { captured.push(msg); return { 
 afterEach(() => {
   captured.length = 0;
   delete process.env.MAIL_ALLOWLIST;
-  delete process.env.VERCEL_ENV;
+  delete process.env.DEPLOY_TARGET;
 });
 
 describe("sendEmail", () => {
@@ -35,7 +35,7 @@ describe("sendEmail", () => {
   });
 
   it("skips every recipient on a preview deployment when MAIL_ALLOWLIST is empty", async () => {
-    process.env.VERCEL_ENV = "preview";
+    process.env.DEPLOY_TARGET = "preview";
     const r = await sendEmail({ to: "m1@srmist.edu.in", template: "otp-code", props: { code: "123456", purpose: "registration" } }, { transport: capture });
     expect(r).toEqual({ ok: true, id: "skipped-not-allowlisted" });
     process.env.MAIL_ALLOWLIST = " ";
@@ -44,7 +44,7 @@ describe("sendEmail", () => {
   });
 
   it("sends to allowlisted recipients on a preview deployment", async () => {
-    process.env.VERCEL_ENV = "preview";
+    process.env.DEPLOY_TARGET = "preview";
     process.env.MAIL_ALLOWLIST = "ok@srmist.edu.in";
     const r = await sendEmail({ to: "OK@srmist.edu.in", template: "otp-code", props: { code: "123456", purpose: "registration" } }, { transport: capture });
     expect(r).toEqual({ ok: true, id: "t1" });

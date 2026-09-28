@@ -10,7 +10,7 @@ vi.mock("resend", () => ({
 const { getTransport } = await import("./send");
 const { resendTransport } = await import("./transport");
 
-const ENV_KEYS = ["VERCEL", "MAIL_TRANSPORT", "RESEND_API_KEY"] as const;
+const ENV_KEYS = ["DEPLOY_TARGET", "MAIL_TRANSPORT", "RESEND_API_KEY"] as const;
 let saved: Partial<Record<(typeof ENV_KEYS)[number], string>>;
 beforeEach(() => {
   saved = {};
@@ -45,26 +45,26 @@ describe("resendTransport", () => {
 });
 
 describe("getTransport", () => {
-  const onVercelError = "MAIL_TRANSPORT=resend and RESEND_API_KEY must be set on Vercel";
+  const deployedError = "MAIL_TRANSPORT=resend and RESEND_API_KEY must be set when deployed (DEPLOY_TARGET is set)";
 
-  it("falls back to the file transport off Vercel", () => {
+  it("falls back to the file transport when not deployed", () => {
     expect(() => getTransport()).not.toThrow();
   });
-  it("refuses the file transport on Vercel", () => {
-    process.env.VERCEL = "1";
-    expect(() => getTransport()).toThrow(onVercelError);
+  it("refuses the file transport when deployed", () => {
+    process.env.DEPLOY_TARGET = "production";
+    expect(() => getTransport()).toThrow(deployedError);
     process.env.MAIL_TRANSPORT = "file";
-    expect(() => getTransport()).toThrow(onVercelError);
+    expect(() => getTransport()).toThrow(deployedError);
   });
-  it("refuses Resend without an API key on Vercel", () => {
-    process.env.VERCEL = "1";
+  it("refuses Resend without an API key when deployed", () => {
+    process.env.DEPLOY_TARGET = "production";
     process.env.MAIL_TRANSPORT = "resend";
-    expect(() => getTransport()).toThrow(onVercelError);
+    expect(() => getTransport()).toThrow(deployedError);
     process.env.RESEND_API_KEY = "";
-    expect(() => getTransport()).toThrow(onVercelError);
+    expect(() => getTransport()).toThrow(deployedError);
   });
-  it("uses Resend on Vercel when it's configured", async () => {
-    process.env.VERCEL = "1";
+  it("uses Resend when deployed and it's configured", async () => {
+    process.env.DEPLOY_TARGET = "production";
     process.env.MAIL_TRANSPORT = "resend";
     process.env.RESEND_API_KEY = "re_test";
     resendSend.mockResolvedValue({ data: { id: "re_2" }, error: null });

@@ -15,10 +15,14 @@ const verifyOtpMock = vi.fn();
 const getDbMock = vi.fn(() => ({}));
 
 vi.mock("@pandora/db", () => ({
-  getDb: () => getDbMock(),
   findStaffByEmail: (...args: unknown[]) => findStaffByEmailMock(...args),
   issueOtp: (...args: unknown[]) => issueOtpMock(...args),
   verifyOtp: (...args: unknown[]) => verifyOtpMock(...args),
+}));
+
+// Mock the app-local database accessor (getDb lives in lib/cf-db, not @pandora/db)
+vi.mock("../../../lib/cf-db", () => ({
+  getDb: async () => getDbMock(),
 }));
 
 // Mock @pandora/email

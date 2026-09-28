@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pandora-console",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "env": {
+    "preview": {
+      "vars": { "DEPLOY_TARGET": "preview" },
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "de985b0cdd7743cc872d72a4295cb95f" }]
+    },
+    "production": {
+      "vars": { "DEPLOY_TARGET": "production" },
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d272bea02ce4492b28f06766c7a6b89" }]
+    }
+  }
+}

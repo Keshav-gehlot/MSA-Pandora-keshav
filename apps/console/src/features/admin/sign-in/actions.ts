@@ -1,9 +1,10 @@
 "use server";
 
 import { otpCodeSchema, personalEmailSchema } from "@pandora/core";
-import { findStaffByEmail, getDb, issueOtp, verifyOtp } from "@pandora/db";
+import { findStaffByEmail, issueOtp, verifyOtp } from "@pandora/db";
 import { sendEmail } from "@pandora/email";
 import { redirect } from "next/navigation";
+import { getDb } from "../../../lib/cf-db";
 import { endSession, startStaffSession } from "../../../lib/session";
 
 export async function requestStaffCode(
@@ -14,7 +15,7 @@ export async function requestStaffCode(
     return { ok: false, message: "Enter a valid email" };
   }
   const normalizedEmail = parsed.data;
-  const db = getDb();
+  const db = await getDb();
 
   const staff = await findStaffByEmail(db, normalizedEmail);
   // Unknown emails receive the exact same neutral success response without sending an email,
@@ -72,7 +73,7 @@ export async function verifyStaffSignIn(
   }
 
   const normalizedEmail = parsedEmail.data;
-  const db = getDb();
+  const db = await getDb();
 
   const verified = await verifyOtp(db, {
     email: normalizedEmail,

@@ -11,7 +11,6 @@ import {
 } from "@pandora/core";
 import {
   findMemberByEmail,
-  getDb,
   getStorage,
   isTeamNameAvailable,
   issueOtp,
@@ -19,6 +18,7 @@ import {
   verifyOtp,
 } from "@pandora/db";
 import { sendEmail } from "@pandora/email";
+import { getDb } from "../../lib/cf-db";
 
 type Result = { ok: true } | { ok: false; message: string };
 
@@ -34,7 +34,7 @@ export async function sendRegistrationCode(
     };
   }
 
-  const db = getDb();
+  const db = await getDb();
 
   const existingMember = await findMemberByEmail(db, parsedEmail.data);
 
@@ -112,7 +112,7 @@ export async function verifyRegistrationCode(
     };
   }
 
-  const result = await verifyOtp(getDb(), {
+  const result = await verifyOtp(await getDb(), {
     email: parsedEmail.data,
     purpose: "registration",
     code: parsedCode.data,
@@ -159,7 +159,7 @@ export async function checkTeamName(
   }
 
   return {
-    available: await isTeamNameAvailable(getDb(), parsedName.data),
+    available: await isTeamNameAvailable(await getDb(), parsedName.data),
   };
 }
 
@@ -278,7 +278,7 @@ export async function submitRegistration(
     );
   }
 
-  const result = await registerTeam(getDb(), {
+  const result = await registerTeam(await getDb(), {
     teamId,
     registration,
     paymentEnabled,

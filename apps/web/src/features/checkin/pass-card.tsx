@@ -1,6 +1,7 @@
 import "server-only";
 import { formatPassPayload } from "@pandora/core";
-import { getDb, getMemberWithTeam, getPassToken } from "@pandora/db";
+import { getMemberWithTeam, getPassToken } from "@pandora/db";
+import { getDb } from "../../lib/cf-db";
 import QRCode from "qrcode";
 
 // Flow D, check-in (Alrik): the member's event pass (QR code), shown on the team dashboard once the team is shortlisted.
@@ -12,7 +13,7 @@ export async function CheckinPassCard({ memberId }: { memberId: string }) {
     return null;
   }
 
-  const db = getDb();
+  const db = await getDb();
   const token = await getPassToken(db, { memberId, secret });
   if (!token) {
     return null;

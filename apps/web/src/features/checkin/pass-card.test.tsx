@@ -15,9 +15,13 @@ const mockGetPassToken = vi.fn();
 const mockGetMemberWithTeam = vi.fn();
 
 vi.mock("@pandora/db", () => ({
-  getDb: () => mockGetDb(),
   getPassToken: (...args: unknown[]) => mockGetPassToken(...args),
   getMemberWithTeam: (...args: unknown[]) => mockGetMemberWithTeam(...args),
+}));
+
+// getDb lives in the app-local lib/cf-db (it reads the Cloudflare Hyperdrive binding), not @pandora/db.
+vi.mock("../../lib/cf-db", () => ({
+  getDb: async () => mockGetDb(),
 }));
 
 import { formatPassPayload } from "@pandora/core";
