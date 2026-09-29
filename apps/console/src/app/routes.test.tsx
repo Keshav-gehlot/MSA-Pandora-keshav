@@ -28,7 +28,14 @@ vi.mock("../features/admin/review/payment-actions", () => ({
   reviewPayment: vi.fn(),
 }));
 
+const getDbMock = vi.fn();
+vi.mock("../lib/cf-db", () => ({
+  getDb: () => getDbMock(),
+}));
+
+const getOverviewMock = vi.fn();
 vi.mock("@pandora/db", () => ({
+  getOverview: (...args: unknown[]) => getOverviewMock(...args),
   getDb: vi.fn(),
   attendanceSummary: vi.fn().mockResolvedValue([
     { teamId: "t-1", teamName: "Alpha", expected: 4, present: 2 },
@@ -43,6 +50,16 @@ import StaffPortalPage from "./staff/page";
 describe("ConsoleHomePage (/) routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getDbMock.mockResolvedValue({});
+    getOverviewMock.mockResolvedValue({
+      teams: 2,
+      members: 7,
+      byTrack: { "Track A": 2 },
+      paymentPending: 1,
+      editRequestsPending: 0,
+      submissions: 1,
+      shortlisted: 0,
+    });
   });
 
   it("redirects staff role to /staff", async () => {
@@ -68,7 +85,8 @@ describe("ConsoleHomePage (/) routing", () => {
     const page = await ConsoleHomePage();
     const html = renderToStaticMarkup(page);
     expect(html).toContain("Overview");
-    expect(html).toContain("Admin Shell Ready");
+    expect(html).toContain("Payments pending");
+    expect(html).toContain("Track A");
     expect(html).toContain("Admin User");
     expect(redirectMock).not.toHaveBeenCalled();
   });
