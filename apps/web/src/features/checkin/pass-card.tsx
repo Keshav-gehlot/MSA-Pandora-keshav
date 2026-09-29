@@ -10,6 +10,7 @@ import QRCode from "qrcode";
 export async function CheckinPassCard({ memberId }: { memberId: string }) {
   const secret = process.env.PASS_SECRET;
   if (!secret) {
+    console.warn("PASS_SECRET is not set; event passes are hidden");
     return null;
   }
 
