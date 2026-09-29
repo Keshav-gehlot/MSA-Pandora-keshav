@@ -19,7 +19,13 @@ vi.mock("next/navigation", () => ({
 
 const requireStaffMock = vi.fn();
 vi.mock("../lib/session", () => ({
-  requireStaff: () => requireStaffMock(),
+  requireStaff: (...args: unknown[]) => requireStaffMock(...args),
+}));
+
+const fetchPendingPaymentsMock = vi.fn().mockResolvedValue([]);
+vi.mock("../features/admin/review/payment-actions", () => ({
+  fetchPendingPayments: () => fetchPendingPaymentsMock(),
+  reviewPayment: vi.fn(),
 }));
 
 vi.mock("@pandora/db", () => ({
@@ -30,6 +36,7 @@ vi.mock("@pandora/db", () => ({
 }));
 
 import ConsoleHomePage from "./page";
+import PaymentsPage from "./payments/page";
 import StaffAttendancePage from "./staff/attendance/page";
 import StaffPortalPage from "./staff/page";
 
@@ -125,5 +132,62 @@ describe("StaffAttendancePage (/staff/attendance) routing", () => {
     expect(html).toContain("Alpha");
     expect(html).toContain("2");
     expect(html).toContain("4");
+  });
+});
+
+describe("PaymentsPage (/payments) routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls requireStaff('admin') and renders off message when PAYMENT_ENABLED is false", async () => {
+    const origEnv = process.env.PAYMENT_ENABLED;
+    process.env.PAYMENT_ENABLED = "false";
+    requireStaffMock.mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@srmist.edu.in",
+      name: "Admin User",
+      role: "admin",
+    });
+
+    const page = await PaymentsPage();
+    const html = renderToStaticMarkup(page);
+    expect(requireStaffMock).toHaveBeenCalledWith("admin");
+    expect(html).toContain("Payment Review");
+    expect(html).toContain("Payments are off");
+    expect(fetchPendingPaymentsMock).not.toHaveBeenCalled();
+
+    process.env.PAYMENT_ENABLED = origEnv;
+  });
+
+  it("fetches pending payments when PAYMENT_ENABLED is true", async () => {
+    const origEnv = process.env.PAYMENT_ENABLED;
+    process.env.PAYMENT_ENABLED = "true";
+    requireStaffMock.mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@srmist.edu.in",
+      name: "Admin User",
+      role: "admin",
+    });
+    fetchPendingPaymentsMock.mockResolvedValueOnce([
+      {
+        proofId: "proof-1",
+        teamId: "team-1",
+        teamName: "Super Team",
+        filePath: "proofs/super.png",
+        signedUrl: "https://storage.example.com/super.png",
+        createdAt: new Date("2026-09-29T10:00:00Z"),
+      },
+    ]);
+
+    const page = await PaymentsPage();
+    const html = renderToStaticMarkup(page);
+    expect(requireStaffMock).toHaveBeenCalledWith("admin");
+    expect(fetchPendingPaymentsMock).toHaveBeenCalled();
+    expect(html).toContain("Payment Review");
+    expect(html).toContain("Super Team");
+    expect(html).not.toContain("Payments are off");
+
+    process.env.PAYMENT_ENABLED = origEnv;
   });
 });
