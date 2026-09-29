@@ -1,8 +1,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../client";
-import { adminActions, members, paymentProofs, staff, teams } from "../schema";
+import { adminActions, members, notifications, paymentProofs, staff, teams } from "../schema";
 import { createTestDb } from "../test-utils";
-import { decidePayment, listPendingPayments, recordAdminAction } from "./admin-review";
+import {
+  createNotification,
+  decidePayment,
+  listNotifications,
+  listNoticeTeams,
+  listPendingPayments,
+  recordAdminAction,
+} from "./admin-review";
 
 let db: Db;
 let staffId: string;
@@ -161,5 +168,92 @@ describe("admin payment review queries", () => {
       targetId: "target-123",
       detail: { reason: "testing" },
     });
+  });
+});
+
+describe("admin notification queries", () => {
+  it("stores all-team and single-team notices with audit records", async () => {
+    const allTeams = await createNotification(db, {
+      staffId,
+      teamId: null,
+      title: "Episode 0 is live",
+      body: "Submit your project by Friday.",
+    });
+    const singleTeam = await createNotification(db, {
+      staffId,
+      teamId,
+      title: "Alpha update",
+      body: "Please update your repository link.",
+    });
+
+    expect(await db.select().from(notifications)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: allTeams.id,
+          teamId: null,
+          title: "Episode 0 is live",
+          body: "Submit your project by Friday.",
+          createdBy: staffId,
+        }),
+        expect.objectContaining({
+          id: singleTeam.id,
+          teamId,
+          title: "Alpha update",
+          body: "Please update your repository link.",
+          createdBy: staffId,
+        }),
+      ]),
+    );
+    expect(
+      (await db.select().from(adminActions)).filter((action) => action.action === "notification.created"),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          staffId,
+          targetType: "notification",
+          targetId: allTeams.id,
+          detail: { teamId: null },
+        }),
+        expect.objectContaining({
+          staffId,
+          targetType: "notification",
+          targetId: singleTeam.id,
+          detail: { teamId },
+        }),
+      ]),
+    );
+  });
+
+  it("lists sent notices newest first with their target team", async () => {
+    await db.insert(notifications).values([
+      {
+        teamId,
+        title: "Older team notice",
+        body: "For Alpha only.",
+        createdBy: staffId,
+        createdAt: new Date("2026-09-20T09:00:00.000Z"),
+      },
+      {
+        teamId: null,
+        title: "Newer all-team notice",
+        body: "For everyone.",
+        createdBy: staffId,
+        createdAt: new Date("2026-09-21T09:00:00.000Z"),
+      },
+    ]);
+
+    await expect(listNotifications(db)).resolves.toMatchObject([
+      { title: "Newer all-team notice", teamId: null, teamName: null },
+      { title: "Older team notice", teamId, teamName: "Alpha" },
+    ]);
+  });
+
+  it("lists teams for the notice target picker", async () => {
+    await db.insert(teams).values({ name: "Beta", nameKey: "beta", track: "Track B" });
+
+    await expect(listNoticeTeams(db)).resolves.toEqual([
+      { id: teamId, name: "Alpha" },
+      expect.objectContaining({ name: "Beta" }),
+    ]);
   });
 });

@@ -1,6 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { Db } from "../client";
-import { adminActions, members, paymentProofs, teams } from "../schema";
+import { adminActions, members, notifications, paymentProofs, teams } from "../schema";
 
 export async function recordAdminAction(
   db: Db,
@@ -19,6 +19,71 @@ export async function recordAdminAction(
     targetId: input.targetId,
     detail: input.detail,
   });
+}
+
+export async function createNotification(
+  db: Db,
+  input: {
+    staffId: string;
+    teamId: string | null;
+    title: string;
+    body: string;
+  },
+): Promise<{ id: string }> {
+  return await db.transaction(async (tx) => {
+    const [notification] = await tx
+      .insert(notifications)
+      .values({
+        teamId: input.teamId,
+        title: input.title,
+        body: input.body,
+        createdBy: input.staffId,
+      })
+      .returning({ id: notifications.id });
+
+    await recordAdminAction(tx, {
+      staffId: input.staffId,
+      action: "notification.created",
+      targetType: "notification",
+      targetId: notification!.id,
+      detail: { teamId: input.teamId },
+    });
+
+    return notification!;
+  });
+}
+
+export async function listNotifications(
+  db: Db,
+): Promise<
+  Array<{
+    id: string;
+    teamId: string | null;
+    teamName: string | null;
+    title: string;
+    body: string;
+    createdAt: Date;
+  }>
+> {
+  return await db
+    .select({
+      id: notifications.id,
+      teamId: notifications.teamId,
+      teamName: teams.name,
+      title: notifications.title,
+      body: notifications.body,
+      createdAt: notifications.createdAt,
+    })
+    .from(notifications)
+    .leftJoin(teams, eq(notifications.teamId, teams.id))
+    .orderBy(desc(notifications.createdAt));
+}
+
+export async function listNoticeTeams(db: Db): Promise<Array<{ id: string; name: string }>> {
+  return await db
+    .select({ id: teams.id, name: teams.name })
+    .from(teams)
+    .orderBy(asc(teams.name));
 }
 
 export async function listPendingPayments(
