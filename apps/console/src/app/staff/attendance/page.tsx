@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { pageTitle } from "@pandora/core";
-import { attendanceSummary, getDb } from "@pandora/db";
+import { attendanceSummary } from "@pandora/db";
 import { Wordmark } from "@pandora/ui";
 import { UserMenu } from "../../../features/admin/shell/user-menu";
+import { getDb } from "../../../lib/cf-db";
 import { requireStaff } from "../../../lib/session";
 import { AttendanceView } from "./attendance-view";
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function StaffAttendancePage() {
   const staff = await requireStaff();
-  const db = getDb();
+  const db = await getDb();
   const initialRows = await attendanceSummary(db);
 
   return (

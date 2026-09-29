@@ -1,7 +1,8 @@
 "use server";
 
 import { parsePassPayload } from "@pandora/core";
-import { attendanceSummary, checkIn, getDb, getStorage, lookupPass, searchCheckin } from "@pandora/db";
+import { attendanceSummary, checkIn, getStorage, lookupPass, searchCheckin } from "@pandora/db";
+import { getDb } from "../../lib/cf-db";
 import { requireStaff } from "../../lib/session";
 
 export type AttendeeDetails = {
@@ -52,7 +53,7 @@ export async function lookupScan(payload: string): Promise<LookupScanResult> {
     return { ok: false, error: "This isn't a valid Pandora pass." };
   }
 
-  const db = getDb();
+  const db = await getDb();
   const pass = await lookupPass(db, token);
   if (!pass) {
     return { ok: false, error: "This isn't a valid Pandora pass." };
@@ -92,7 +93,7 @@ export async function lookupScan(payload: string): Promise<LookupScanResult> {
  */
 export async function confirmCheckIn(memberId: string): Promise<CheckInResult> {
   const staff = await requireStaff();
-  const db = getDb();
+  const db = await getDb();
 
   const result = await checkIn(db, {
     memberId,
@@ -127,7 +128,7 @@ export async function searchMembers(
   query: string,
 ): Promise<{ ok: true; data: SearchMemberResult[] } | { ok: false; error: string }> {
   await requireStaff();
-  const db = getDb();
+  const db = await getDb();
   const results = await searchCheckin(db, query);
   return { ok: true, data: results };
 }
@@ -148,7 +149,7 @@ export async function getAttendanceSummaryAction(): Promise<{
   data: TeamAttendance[];
 }> {
   await requireStaff();
-  const db = getDb();
+  const db = await getDb();
   const rows = await attendanceSummary(db);
   return { ok: true, data: rows };
 }
