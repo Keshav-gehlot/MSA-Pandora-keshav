@@ -22,7 +22,15 @@ vi.mock("../lib/session", () => ({
   requireStaff: () => requireStaffMock(),
 }));
 
+vi.mock("@pandora/db", () => ({
+  getDb: vi.fn(),
+  attendanceSummary: vi.fn().mockResolvedValue([
+    { teamId: "t-1", teamName: "Alpha", expected: 4, present: 2 },
+  ]),
+}));
+
 import ConsoleHomePage from "./page";
+import StaffAttendancePage from "./staff/attendance/page";
 import StaffPortalPage from "./staff/page";
 
 describe("ConsoleHomePage (/) routing", () => {
@@ -64,7 +72,7 @@ describe("StaffPortalPage (/staff) routing", () => {
     vi.clearAllMocks();
   });
 
-  it("renders staff portal shell for authenticated staff", async () => {
+  it("renders staff portal shell and checkin scanner for authenticated staff", async () => {
     requireStaffMock.mockResolvedValueOnce({
       id: "staff-1",
       email: "volunteer@srmist.edu.in",
@@ -75,9 +83,10 @@ describe("StaffPortalPage (/staff) routing", () => {
     const page = await StaffPortalPage();
     const html = renderToStaticMarkup(page);
     expect(html).toContain("Staff Portal");
-    expect(html).toContain("Staff Check-in Portal");
     expect(html).toContain("Volunteer");
-    expect(html).toContain("Flow D");
+    expect(html).toContain("Camera Scanner");
+    expect(html).toContain("Manual Search");
+    expect(html).toContain("Attendance Dashboard");
   });
 
   it("renders staff portal shell for authenticated admin", async () => {
@@ -92,5 +101,29 @@ describe("StaffPortalPage (/staff) routing", () => {
     const html = renderToStaticMarkup(page);
     expect(html).toContain("Staff Portal");
     expect(html).toContain("Admin User");
+  });
+});
+
+describe("StaffAttendancePage (/staff/attendance) routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders attendance metrics and team breakdown for authenticated staff", async () => {
+    requireStaffMock.mockResolvedValueOnce({
+      id: "staff-1",
+      email: "volunteer@srmist.edu.in",
+      name: "Volunteer",
+      role: "staff",
+    });
+
+    const page = await StaffAttendancePage();
+    const html = renderToStaticMarkup(page);
+    expect(html).toContain("Staff Portal");
+    expect(html).toContain("Back to Scanner");
+    expect(html).toContain("Total Attendance");
+    expect(html).toContain("Alpha");
+    expect(html).toContain("2");
+    expect(html).toContain("4");
   });
 });

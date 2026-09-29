@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { pageTitle } from "@pandora/core";
 import { Wordmark } from "@pandora/ui";
 import { UserMenu } from "../../features/admin/shell/user-menu";
+import { CheckinScanner } from "../../features/checkin/scanner";
 import { requireStaff } from "../../lib/session";
 
 export const metadata: Metadata = {
-  title: pageTitle("Staff Portal - Console"),
+  title: pageTitle("Staff Check-in Portal - Console"),
 };
 
 export default async function StaffPortalPage() {
@@ -32,7 +34,7 @@ export default async function StaffPortalPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "1.5rem",
+          marginBottom: "1rem",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -52,6 +54,21 @@ export default async function StaffPortalPage() {
             Staff Portal
           </span>
         </div>
+
+        <Link
+          href="/staff/attendance"
+          style={{
+            fontSize: "0.8125rem",
+            fontWeight: 600,
+            color: "#2563eb",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.25rem",
+          }}
+        >
+          Attendance Dashboard →
+        </Link>
       </header>
 
       <main
@@ -63,68 +80,8 @@ export default async function StaffPortalPage() {
           gap: "1.25rem",
         }}
       >
-        {/* User Card */}
         <UserMenu name={staff.name} email={staff.email} role={staff.role} />
-
-        {/* Status Card / Placeholder */}
-        <div
-          style={{
-            padding: "1.5rem",
-            borderRadius: "var(--radius-container, 0.75rem)",
-            backgroundColor: "var(--color-background-card, #ffffff)",
-            border: "1px solid var(--color-border, #e5e5e5)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.75rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor: "var(--color-success, #16a34a)",
-              }}
-            />
-            <h2
-              style={{
-                margin: 0,
-                fontSize: "1rem",
-                fontWeight: 600,
-                color: "var(--color-text-primary, #111827)",
-              }}
-            >
-              Staff Check-in Portal
-            </h2>
-          </div>
-
-          <p
-            style={{
-              margin: 0,
-              fontSize: "0.875rem",
-              lineHeight: 1.5,
-              color: "var(--color-text-secondary, #4b5563)",
-            }}
-          >
-            Welcome, {staff.name}. QR code ticket scanning and manual attendee search will activate with
-            Flow D (Task D3).
-          </p>
-
-          <div
-            style={{
-              marginTop: "0.5rem",
-              padding: "0.75rem 1rem",
-              borderRadius: "var(--radius-element, 0.375rem)",
-              backgroundColor: "var(--color-neutral, #f3f4f6)",
-              fontSize: "0.75rem",
-              color: "var(--color-text-secondary, #6b7280)",
-              lineHeight: 1.4,
-            }}
-          >
-            On event day, this screen will be used on mobile devices to check in shortlisted participants.
-          </div>
-        </div>
+        <CheckinScanner />
       </main>
     </div>
   );
