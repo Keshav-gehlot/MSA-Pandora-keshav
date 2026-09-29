@@ -1,6 +1,13 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../client";
-import { adminActions, members, notifications, paymentProofs, teams } from "../schema";
+import {
+  adminActions,
+  members,
+  notifications,
+  paymentProofs,
+  submissions,
+  teams,
+} from "../schema";
 
 export async function recordAdminAction(
   db: Db,
@@ -183,5 +190,137 @@ export async function decidePayment(
       teamName: team?.name ?? "",
       memberEmails: teamMembers.map((m) => m.srmEmail),
     };
+  });
+}
+
+export async function listSubmissions(
+  db: Db,
+): Promise<
+  Array<{
+    submissionId: string;
+    teamId: string;
+    teamName: string;
+    track: string;
+    repoUrl: string | null;
+    demoUrl: string | null;
+    notes: string | null;
+    score: number | null;
+    reviewNote: string | null;
+    shortlistStatus: string;
+    updatedAt: Date;
+  }>
+> {
+  const rows = await db
+    .select({
+      submissionId: submissions.id,
+      teamId: teams.id,
+      teamName: teams.name,
+      track: teams.track,
+      repoUrl: submissions.repoUrl,
+      demoUrl: submissions.demoUrl,
+      notes: submissions.notes,
+      score: submissions.score,
+      reviewNote: submissions.reviewNote,
+      shortlistStatus: teams.shortlistStatus,
+      updatedAt: submissions.updatedAt,
+    })
+    .from(submissions)
+    .innerJoin(teams, eq(submissions.teamId, teams.id))
+    .where(eq(submissions.episode, 0))
+    .orderBy(
+      sql`${submissions.score} desc nulls last`,
+      desc(submissions.updatedAt),
+    );
+
+  return rows;
+}
+
+export async function reviewSubmission(
+  db: Db,
+  input: {
+    submissionId: string;
+    staffId: string;
+    score: number;
+    reviewNote: string;
+  },
+): Promise<{ ok: boolean }> {
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: submissions.id, teamId: submissions.teamId })
+      .from(submissions)
+      .where(eq(submissions.id, input.submissionId))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false };
+    }
+
+    const now = new Date();
+
+    await tx
+      .update(submissions)
+      .set({
+        score: input.score,
+        reviewNote: input.reviewNote,
+        updatedAt: now,
+      })
+      .where(eq(submissions.id, input.submissionId));
+
+    await recordAdminAction(tx, {
+      staffId: input.staffId,
+      action: "submission.reviewed",
+      targetType: "submission",
+      targetId: input.submissionId,
+      detail: {
+        score: input.score,
+        reviewNote: input.reviewNote,
+      },
+    });
+
+    return { ok: true };
+  });
+}
+
+export async function setShortlistStatus(
+  db: Db,
+  input: {
+    teamId: string;
+    staffId: string;
+    status: "pending" | "shortlisted" | "not_shortlisted";
+  },
+): Promise<{ ok: true } | { ok: false; reason: "not_found" }> {
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: teams.id, shortlistStatus: teams.shortlistStatus })
+      .from(teams)
+      .where(eq(teams.id, input.teamId))
+      .limit(1);
+
+    if (!existing) {
+      return { ok: false, reason: "not_found" };
+    }
+
+    const now = new Date();
+
+    await tx
+      .update(teams)
+      .set({
+        shortlistStatus: input.status,
+        updatedAt: now,
+      })
+      .where(eq(teams.id, input.teamId));
+
+    await recordAdminAction(tx, {
+      staffId: input.staffId,
+      action: "team.shortlist",
+      targetType: "team",
+      targetId: input.teamId,
+      detail: {
+        from: existing.shortlistStatus,
+        to: input.status,
+      },
+    });
+
+    return { ok: true };
   });
 }

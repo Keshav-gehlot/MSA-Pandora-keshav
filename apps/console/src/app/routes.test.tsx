@@ -28,12 +28,21 @@ vi.mock("../features/admin/review/payment-actions", () => ({
   reviewPayment: vi.fn(),
 }));
 
-const getDbMock = vi.fn();
+const fetchSubmissionsMock = vi.fn().mockResolvedValue([]);
+
+vi.mock("../features/admin/episode-0/episode-0-actions", () => ({
+  fetchSubmissions: () => fetchSubmissionsMock(),
+  submitReviewAction: vi.fn(),
+  updateShortlistAction: vi.fn(),
+}));
+
+const getDbMock = vi.fn().mockResolvedValue({});
 vi.mock("../lib/cf-db", () => ({
   getDb: () => getDbMock(),
 }));
 
 const getOverviewMock = vi.fn();
+
 vi.mock("@pandora/db", () => ({
   getOverview: (...args: unknown[]) => getOverviewMock(...args),
   getDb: vi.fn(),
@@ -44,6 +53,7 @@ vi.mock("@pandora/db", () => ({
 
 import ConsoleHomePage from "./page";
 import PaymentsPage from "./payments/page";
+import Episode0Page from "./episode-0/page";
 import StaffAttendancePage from "./staff/attendance/page";
 import StaffPortalPage from "./staff/page";
 
@@ -207,5 +217,43 @@ describe("PaymentsPage (/payments) routing", () => {
     expect(html).not.toContain("Payments are off");
 
     process.env.PAYMENT_ENABLED = origEnv;
+  });
+});
+
+describe("Episode0Page (/episode-0) routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls requireStaff('admin') and renders submissions with shortlist counter", async () => {
+    requireStaffMock.mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@srmist.edu.in",
+      name: "Admin User",
+      role: "admin",
+    });
+    fetchSubmissionsMock.mockResolvedValueOnce([
+      {
+        submissionId: "sub-1",
+        teamId: "team-1",
+        teamName: "Alpha Innovators",
+        track: "Track A",
+        repoUrl: "https://github.com/alpha/repo",
+        demoUrl: "https://alpha.demo.com",
+        notes: "Innovative AI assistant",
+        score: 92,
+        reviewNote: "Superb architecture",
+        shortlistStatus: "shortlisted",
+        updatedAt: new Date("2026-10-01T10:00:00Z"),
+      },
+    ]);
+
+    const page = await Episode0Page();
+    const html = renderToStaticMarkup(page);
+    expect(requireStaffMock).toHaveBeenCalledWith("admin");
+    expect(fetchSubmissionsMock).toHaveBeenCalled();
+    expect(html).toContain("Episode 0 Submissions");
+    expect(html).toContain("Alpha Innovators");
+    expect(html).toContain("shortlisted 1 of target 48");
   });
 });
