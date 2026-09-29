@@ -9,8 +9,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch: # "Run workflow" button in the Actions tab: deploys both apps to production
+# Pull-request runs get their own group per PR number (a newer push to the PR cancels the older run). They must not
+# share the group with pushes to main: when a PR merges, its "closed" run and the push-to-main production deploy
+# start within seconds of each other, and a shared group let the closed run cancel the production deploy.
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
