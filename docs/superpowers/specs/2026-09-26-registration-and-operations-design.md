@@ -149,6 +149,10 @@ preview).
     request (diff) and shown as "pending review" until an admin decides. Nothing changes until approval.
   - **Episode 0 submission**: repository URL, demo URL, notes; editable until the Episode 0 deadline
     (`EPISODE_0_DEADLINE` config).
+    **Only verified teams can submit.** A team is verified when an admin approved its payment (`payment_status`
+    `approved`), or when the event has no payment (`not_required`). Until then the dashboard explains that the
+    registration is being verified (`pending`) or that the payment needs another look (`declined`), and the server
+    refuses the submission. Verification happens before shortlisting, so shortlisting needs no separate payment check.
   - **Check-in pass** (from flow D) appears once the team is shortlisted.
 
 **Done when:** every member of a registered team can sign in and see the same dashboard; an edit request and an

@@ -103,7 +103,7 @@ export function markNotificationRead(db: Db, input: { notificationId: string; me
 export function proposeEdit(db: Db, input: { teamId: string; memberId: string; proposed: TeamSnapshot }):
   Promise<{ ok: true; changes: FieldChange[] } | { ok: false; reason: "no_changes" | "pending_exists" }>;
 export function saveSubmission(db: Db, input: { teamId: string; submission: Submission; now?: Date; deadline?: string }):
-  Promise<{ ok: true } | { ok: false; reason: "closed" }>;
+  Promise<{ ok: true } | { ok: false; reason: "closed" | "not_verified" }>; // not_verified: payment_status is pending or declined (only approved / not_required teams may submit)
 ```
 Rules: notifications visible to a team = `team_id = teamId OR team_id IS NULL`; `markNotificationRead` ignores notifications the team can't see and is idempotent; `proposeEdit` computes `diffTeam(current, proposed)` and stores it; `saveSubmission` upserts the team's episode-0 row (unique `(team_id, episode)`).
 
@@ -223,7 +223,7 @@ Behaviour: invalid SRM email → schema message. Known member: `issueOtp` (`part
 **Files:** Create `apps/web/src/app/(participant)/team/page.tsx`, `apps/web/src/features/participant/*` (dashboard sections and `dashboard-actions.ts` with `markRead(notificationId)`, `submitEdit(formData)`, `submitEpisodeZero(formData)`).
 
 - [ ] Every page/action begins with `requireMember()` and uses only `team.id` from it.
-- [ ] Sections: welcome + team name + track; members list; journey (Registration ✓ → Shortlisting pending/shortlisted/not shortlisted → Episodes 1-3 locked); payment status (only when not `not_required`); notices with unread badge and "mark as read"; Edit details (pre-filled form built from `getTeamSnapshot`, validated with `teamEditSchema`, then `proposeEdit`; shows "pending review" with the listed changes while one is pending); Episode 0 submission form (`submissionSchema`, `saveSubmission`, disabled with a message once `isEpisodeZeroOpen` is false); `<CheckinPassCard memberId={member.id} />`.
+- [ ] Sections: welcome + team name + track; members list; journey (Registration ✓ → Shortlisting pending/shortlisted/not shortlisted → Episodes 1-3 locked); payment status (only when not `not_required`); notices with unread badge and "mark as read"; Edit details (pre-filled form built from `getTeamSnapshot`, validated with `teamEditSchema`, then `proposeEdit`; shows "pending review" with the listed changes while one is pending); Episode 0 submission form (`submissionSchema`, `saveSubmission`, disabled with a message once `isEpisodeZeroOpen` is false, and for teams whose `paymentStatus` is `pending` ("being verified") or `declined` ("payment needs another look"); handle the `not_verified` result too); `<CheckinPassCard memberId={member.id} />`.
 - [ ] `no_changes` → "Nothing changed."; `pending_exists` → "You already have changes waiting for review."; `closed` → "Episode 0 submissions are closed."
 - [ ] Mobile-first, 375 px; keyboard reachable.
 - [ ] typecheck + lint + build → PASS; commit `Add the team dashboard`.
