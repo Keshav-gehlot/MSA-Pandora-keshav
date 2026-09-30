@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import jsQR from "jsqr";
 import {
   confirmCheckIn,
   lookupScan,
@@ -9,16 +10,6 @@ import {
   type CheckInResult,
   type SearchMemberResult,
 } from "./actions";
-
-interface DetectedBarcode {
-  rawValue?: string;
-}
-
-interface BarcodeDetectorInstance {
-  detect(source: HTMLVideoElement): Promise<DetectedBarcode[]>;
-}
-
-type BarcodeDetectorConstructor = new (opts: { formats: string[] }) => BarcodeDetectorInstance;
 
 function formatIstTime(date: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -36,10 +27,6 @@ export function CheckinScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [barcodeSupported] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return "BarcodeDetector" in window;
-  });
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
   const lastScannedPayloadRef = useRef<{ payload: string; timestamp: number } | null>(null);
@@ -162,35 +149,59 @@ export function CheckinScanner() {
     };
   }, [activeTab, attendee]);
 
-  // QR Scanning Loop using BarcodeDetector
+  // QR Scanning Loop using jsqr with canvas frame decoding
   useEffect(() => {
-    if (!cameraActive || isProcessing || attendee !== null || !barcodeSupported) {
+    if (!cameraActive || isProcessing || attendee !== null) {
       return;
     }
 
     let active = true;
-    let detector: BarcodeDetectorInstance | null = null;
+    let canvas: HTMLCanvasElement | null = null;
+    let ctx: CanvasRenderingContext2D | null = null;
 
-    try {
-      const BarcodeDetectorClass = (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
-      if (BarcodeDetectorClass) {
-        detector = new BarcodeDetectorClass({ formats: ["qr_code"] });
-      }
-    } catch {
-      return;
-    }
-
-    if (!detector) return;
-
-    const intervalId = setInterval(async () => {
+    const intervalId = setInterval(() => {
       if (!active || isProcessingRef.current || !videoRef.current || videoRef.current.readyState < 2) {
         return;
       }
 
+      const video = videoRef.current;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (!width || !height || width <= 0 || height <= 0) {
+        return;
+      }
+
+      // Down-scale camera frames so the canvas used for decoding is capped at roughly
+      // 480–640 px on the long side while preserving the video's original aspect ratio.
+      const MAX_LONG_SIDE = 640;
+      const longSide = Math.max(width, height);
+      const scale = longSide > MAX_LONG_SIDE ? MAX_LONG_SIDE / longSide : 1;
+      const targetWidth = Math.round(width * scale);
+      const targetHeight = Math.round(height * scale);
+      if (targetWidth <= 0 || targetHeight <= 0) {
+        return;
+      }
+
+      if (!canvas) {
+        canvas = document.createElement("canvas");
+      }
+      if (canvas.width !== targetWidth) canvas.width = targetWidth;
+      if (canvas.height !== targetHeight) canvas.height = targetHeight;
+
+      if (!ctx) {
+        ctx = canvas.getContext("2d", { willReadFrequently: true });
+      }
+      if (!ctx) return;
+
       try {
-        const barcodes = await detector?.detect(videoRef.current);
-        if (barcodes && barcodes.length > 0 && barcodes[0]?.rawValue && active) {
-          const rawValue = barcodes[0].rawValue;
+        ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+        const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+        const code = jsQR(imageData.data, targetWidth, targetHeight, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code && code.data && active) {
+          const rawValue = code.data;
           const now = Date.now();
           if (
             lastScannedPayloadRef.current &&
@@ -206,7 +217,7 @@ export function CheckinScanner() {
           handleProcessPayload(rawValue);
         }
       } catch {
-        // Frame detection error, ignore and continue next interval
+        // Frame decoding error, ignore and continue next interval
       }
     }, 250);
 
@@ -214,7 +225,7 @@ export function CheckinScanner() {
       active = false;
       clearInterval(intervalId);
     };
-  }, [cameraActive, isProcessing, attendee, barcodeSupported, handleProcessPayload]);
+  }, [cameraActive, isProcessing, attendee, handleProcessPayload]);
 
   // Perform check-in
   const handleConfirmCheckIn = () => {
@@ -440,21 +451,6 @@ export function CheckinScanner() {
             )}
           </div>
 
-          {!barcodeSupported && (
-            <div
-              style={{
-                padding: "0.625rem 0.75rem",
-                borderRadius: "var(--radius-element, 0.375rem)",
-                backgroundColor: "#fef3c7",
-                color: "#92400e",
-                fontSize: "0.75rem",
-                lineHeight: 1.4,
-              }}
-            >
-              ⚠️ Automatic QR detection is not supported on this browser profile. Use the manual search
-              tab or enter the pass payload below.
-            </div>
-          )}
 
           {scanError && (
             <div
