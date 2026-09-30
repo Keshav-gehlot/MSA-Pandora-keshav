@@ -1,7 +1,16 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import {
+  applyChanges,
+  teamEditSchema,
+  teamNameKey,
+  type FieldChange,
+  type TeamSnapshot,
+} from "@pandora/core";
 import type { Db } from "../client";
+import { uniqueViolationField, type UniqueField } from "../errors";
 import {
   adminActions,
+  editRequests,
   members,
   notifications,
   paymentProofs,
@@ -191,6 +200,292 @@ export async function decidePayment(
       memberEmails: teamMembers.map((m) => m.srmEmail),
     };
   });
+}
+
+async function loadTeamSnapshot(
+  db: Db,
+  teamId: string,
+): Promise<TeamSnapshot | null> {
+  const [team] = await db
+    .select({
+      id: teams.id,
+      name: teams.name,
+      track: teams.track,
+    })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+    .limit(1);
+
+  if (!team) return null;
+
+  const rows = await db
+    .select({
+      id: members.id,
+      firstName: members.firstName,
+      lastName: members.lastName,
+      regNumber: members.regNumber,
+      srmEmail: members.srmEmail,
+      personalEmail: members.personalEmail,
+      phone: members.phone,
+    })
+    .from(members)
+    .where(eq(members.teamId, teamId))
+    .orderBy(asc(members.position));
+
+  return {
+    teamName: team.name,
+    track: team.track as TeamSnapshot["track"],
+    members: rows,
+  };
+}
+
+export async function listPendingEditRequests(
+  db: Db,
+): Promise<
+  Array<{
+    requestId: string;
+    teamId: string;
+    teamName: string;
+    requestedByName: string;
+    changes: FieldChange[];
+    createdAt: Date;
+  }>
+> {
+  const rows = await db
+    .select({
+      requestId: editRequests.id,
+      teamId: teams.id,
+      teamName: teams.name,
+      firstName: members.firstName,
+      lastName: members.lastName,
+      changes: editRequests.changes,
+      createdAt: editRequests.createdAt,
+    })
+    .from(editRequests)
+    .innerJoin(teams, eq(editRequests.teamId, teams.id))
+    .innerJoin(members, eq(editRequests.requestedBy, members.id))
+    .where(eq(editRequests.status, "pending"))
+    .orderBy(asc(editRequests.createdAt));
+
+  return rows.map((r) => ({
+    requestId: r.requestId,
+    teamId: r.teamId,
+    teamName: r.teamName,
+    requestedByName: `${r.firstName} ${r.lastName}`.trim(),
+    changes: r.changes,
+    createdAt: r.createdAt,
+  }));
+}
+
+export async function decideEditRequest(
+  db: Db,
+  input: {
+    requestId: string;
+    staffId: string;
+    decision: "approved" | "declined";
+    note?: string;
+    now?: Date;
+  },
+): Promise<
+  | { ok: true; teamName: string; memberEmails: string[] }
+  | { ok: false; reason: "not_found" | "already_decided" }
+  | { ok: false; reason: "invalid"; message: string }
+  | { ok: false; reason: "taken"; field: UniqueField }
+> {
+  try {
+    return await db.transaction(async (tx) => {
+      const [existingRequest] = await tx
+        .select({
+          id: editRequests.id,
+          teamId: editRequests.teamId,
+          status: editRequests.status,
+          changes: editRequests.changes,
+        })
+        .from(editRequests)
+        .where(eq(editRequests.id, input.requestId))
+        .limit(1);
+
+      if (!existingRequest) {
+        return { ok: false, reason: "not_found" };
+      }
+
+      if (existingRequest.status !== "pending") {
+        return { ok: false, reason: "already_decided" };
+      }
+
+      const now = input.now ?? new Date();
+
+      if (input.decision === "declined") {
+        const [updatedRequest] = await tx
+          .update(editRequests)
+          .set({
+            status: "declined",
+            reviewedBy: input.staffId,
+            reviewedAt: now,
+            note: input.note ?? null,
+          })
+          .where(
+            and(
+              eq(editRequests.id, input.requestId),
+              eq(editRequests.status, "pending"),
+            ),
+          )
+          .returning();
+
+        if (!updatedRequest) {
+          return { ok: false, reason: "already_decided" };
+        }
+
+        const [team] = await tx
+          .select({ name: teams.name })
+          .from(teams)
+          .where(eq(teams.id, existingRequest.teamId))
+          .limit(1);
+
+        await tx.insert(notifications).values({
+          teamId: existingRequest.teamId,
+          title: "Your change request was declined",
+          body: input.note?.trim() || "Your change request was declined.",
+          createdBy: input.staffId,
+          createdAt: now,
+        });
+
+        await recordAdminAction(tx, {
+          staffId: input.staffId,
+          action: "edit.declined",
+          targetType: "edit_request",
+          targetId: input.requestId,
+          detail: input.note ? { note: input.note } : undefined,
+        });
+
+        const teamMembers = await tx
+          .select({ srmEmail: members.srmEmail })
+          .from(members)
+          .where(eq(members.teamId, existingRequest.teamId))
+          .orderBy(asc(members.position));
+
+        return {
+          ok: true,
+          teamName: team?.name ?? "",
+          memberEmails: teamMembers.map((m) => m.srmEmail),
+        };
+      }
+
+      const snapshot = await loadTeamSnapshot(tx as unknown as Db, existingRequest.teamId);
+      if (!snapshot) {
+        return { ok: false, reason: "not_found" };
+      }
+
+      let nextSnapshot: TeamSnapshot;
+      try {
+        nextSnapshot = applyChanges(snapshot, existingRequest.changes);
+      } catch (err) {
+        return {
+          ok: false,
+          reason: "invalid",
+          message: err instanceof Error ? err.message : "Invalid edit",
+        };
+      }
+
+      const validation = teamEditSchema.safeParse(nextSnapshot);
+      if (!validation.success) {
+        const firstIssue = validation.error.issues[0];
+        return {
+          ok: false,
+          reason: "invalid",
+          message: firstIssue?.message ?? "Invalid edit",
+        };
+      }
+
+      const validSnapshot = validation.data;
+
+      const [updatedRequest] = await tx
+        .update(editRequests)
+        .set({
+          status: "approved",
+          reviewedBy: input.staffId,
+          reviewedAt: now,
+          note: input.note ?? null,
+        })
+        .where(
+          and(
+            eq(editRequests.id, input.requestId),
+            eq(editRequests.status, "pending"),
+          ),
+        )
+        .returning();
+
+      if (!updatedRequest) {
+        return { ok: false, reason: "already_decided" };
+      }
+
+      for (const change of existingRequest.changes) {
+        if (change.path === "teamName") {
+          await tx
+            .update(teams)
+            .set({
+              name: change.to,
+              nameKey: teamNameKey(change.to),
+              updatedAt: now,
+            })
+            .where(eq(teams.id, existingRequest.teamId));
+        } else if (change.path === "track") {
+          await tx
+            .update(teams)
+            .set({
+              track: change.to,
+              updatedAt: now,
+            })
+            .where(eq(teams.id, existingRequest.teamId));
+        } else if (change.path.startsWith("members.")) {
+          const [, memberId, field] = change.path.split(".");
+          if (memberId && field) {
+            await tx
+              .update(members)
+              .set({
+                [field]: change.to,
+                updatedAt: now,
+              })
+              .where(eq(members.id, memberId));
+          }
+        }
+      }
+
+      await tx.insert(notifications).values({
+        teamId: existingRequest.teamId,
+        title: "Your change request was approved",
+        body: input.note?.trim() || "Your change request was approved.",
+        createdBy: input.staffId,
+        createdAt: now,
+      });
+
+      await recordAdminAction(tx, {
+        staffId: input.staffId,
+        action: "edit.approved",
+        targetType: "edit_request",
+        targetId: input.requestId,
+        detail: input.note ? { note: input.note } : undefined,
+      });
+
+      const teamMembers = await tx
+        .select({ srmEmail: members.srmEmail })
+        .from(members)
+        .where(eq(members.teamId, existingRequest.teamId))
+        .orderBy(asc(members.position));
+
+      return {
+        ok: true,
+        teamName: validSnapshot.teamName,
+        memberEmails: teamMembers.map((m) => m.srmEmail),
+      };
+    });
+  } catch (error) {
+    const field = uniqueViolationField(error);
+    if (field) {
+      return { ok: false, reason: "taken", field };
+    }
+    throw error;
+  }
 }
 
 export async function listSubmissions(

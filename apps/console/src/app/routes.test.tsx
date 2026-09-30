@@ -28,6 +28,13 @@ vi.mock("../features/admin/review/payment-actions", () => ({
   reviewPayment: vi.fn(),
 }));
 
+const fetchPendingEditsMock = vi.fn().mockResolvedValue([]);
+
+vi.mock("../features/admin/review/edit-actions", () => ({
+  fetchPendingEdits: () => fetchPendingEditsMock(),
+  reviewEditRequest: vi.fn(),
+}));
+
 const fetchSubmissionsMock = vi.fn().mockResolvedValue([]);
 
 vi.mock("../features/admin/episode-0/episode-0-actions", () => ({
@@ -53,6 +60,7 @@ vi.mock("@pandora/db", () => ({
 
 import ConsoleHomePage from "./page";
 import PaymentsPage from "./payments/page";
+import EditsPage from "./edits/page";
 import Episode0Page from "./episode-0/page";
 import StaffAttendancePage from "./staff/attendance/page";
 import StaffPortalPage from "./staff/page";
@@ -217,6 +225,39 @@ describe("PaymentsPage (/payments) routing", () => {
     expect(html).not.toContain("Payments are off");
 
     process.env.PAYMENT_ENABLED = origEnv;
+  });
+});
+
+describe("EditsPage (/edits) routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls requireStaff('admin') and renders pending edit requests", async () => {
+    requireStaffMock.mockResolvedValueOnce({
+      id: "admin-1",
+      email: "admin@srmist.edu.in",
+      name: "Admin User",
+      role: "admin",
+    });
+    fetchPendingEditsMock.mockResolvedValueOnce([
+      {
+        requestId: "req-1",
+        teamId: "team-1",
+        teamName: "Alpha Warriors",
+        requestedByName: "Aarav Sharma",
+        changes: [{ path: "teamName", from: "Alpha", to: "Alpha Warriors" }],
+        createdAt: new Date("2026-10-01T10:00:00Z"),
+      },
+    ]);
+
+    const page = await EditsPage();
+    const html = renderToStaticMarkup(page);
+    expect(requireStaffMock).toHaveBeenCalledWith("admin");
+    expect(fetchPendingEditsMock).toHaveBeenCalled();
+    expect(html).toContain("Edit Requests");
+    expect(html).toContain("Alpha Warriors");
+    expect(html).toContain("Aarav Sharma");
   });
 });
 
