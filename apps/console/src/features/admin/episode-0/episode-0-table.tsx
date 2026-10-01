@@ -20,7 +20,7 @@ export function Episode0Table({ initialSubmissions, target }: Episode0TableProps
   const [reviewNote, setReviewNote] = useState<string>("");
 
   const [statusMessage, setStatusMessage] = useState<{
-    type: "success" | "error";
+    type: "success" | "error" | "warning";
     text: string;
   } | null>(null);
 
@@ -103,15 +103,19 @@ export function Episode0Table({ initialSubmissions, target }: Episode0TableProps
           setSubmissions((prev) =>
             prev.map((s) => (s.teamId === teamId ? { ...s, shortlistStatus: status } : s)),
           );
-          setStatusMessage({
-            type: "success",
-            text:
-              status === "shortlisted"
-                ? "Team marked as shortlisted"
-                : status === "not_shortlisted"
-                  ? "Team marked as not shortlisted"
-                  : "Team shortlist status reset to pending",
-          });
+          setStatusMessage(
+            res.warning
+              ? { type: "warning", text: res.warning }
+              : {
+                  type: "success",
+                  text:
+                    status === "shortlisted"
+                      ? "Team marked as shortlisted"
+                      : status === "not_shortlisted"
+                        ? "Team marked as not shortlisted"
+                        : "Team shortlist status reset to pending",
+                },
+          );
         } else {
           setStatusMessage({ type: "error", text: res.message });
         }
@@ -254,9 +258,25 @@ export function Episode0Table({ initialSubmissions, target }: Episode0TableProps
             borderRadius: "var(--radius-element, 0.5rem)",
             fontSize: "0.875rem",
             fontWeight: 500,
-            backgroundColor: statusMessage.type === "success" ? "#ecfdf5" : "#fef2f2",
-            color: statusMessage.type === "success" ? "#065f46" : "#991b1b",
-            border: `1px solid ${statusMessage.type === "success" ? "#a7f3d0" : "#fecaca"}`,
+            backgroundColor:
+              statusMessage.type === "success"
+                ? "#ecfdf5"
+                : statusMessage.type === "warning"
+                  ? "#fffbeb"
+                  : "#fef2f2",
+            color:
+              statusMessage.type === "success"
+                ? "#065f46"
+                : statusMessage.type === "warning"
+                  ? "#92400e"
+                  : "#991b1b",
+            border: `1px solid ${
+              statusMessage.type === "success"
+                ? "#a7f3d0"
+                : statusMessage.type === "warning"
+                  ? "#fde68a"
+                  : "#fecaca"
+            }`,
           }}
         >
           {statusMessage.text}

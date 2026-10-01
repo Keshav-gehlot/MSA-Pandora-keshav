@@ -10,11 +10,15 @@ vi.mock("next/cache", () => ({
 const listSubmissionsMock = vi.fn();
 const reviewSubmissionMock = vi.fn();
 const setShortlistStatusMock = vi.fn();
+const issuePassesForTeamMock = vi.fn();
+const getTeamDetailMock = vi.fn();
 
 vi.mock("@pandora/db", () => ({
   listSubmissions: (...args: unknown[]) => listSubmissionsMock(...args),
   reviewSubmission: (...args: unknown[]) => reviewSubmissionMock(...args),
   setShortlistStatus: (...args: unknown[]) => setShortlistStatusMock(...args),
+  issuePassesForTeam: (...args: unknown[]) => issuePassesForTeamMock(...args),
+  getTeamDetail: (...args: unknown[]) => getTeamDetailMock(...args),
 }));
 
 // Mock cf-db
@@ -29,11 +33,24 @@ vi.mock("../../../lib/session", () => ({
   requireStaff: (...args: unknown[]) => requireStaffMock(...args),
 }));
 
+const sendEmailMock = vi.fn();
+vi.mock("@pandora/email", () => ({
+  sendEmail: (...args: unknown[]) => sendEmailMock(...args),
+}));
+
 import {
   fetchSubmissions,
   submitReviewAction,
   updateShortlistAction,
 } from "./episode-0-actions";
+
+function restorePassSecret(previousSecret: string | undefined) {
+  if (previousSecret === undefined) {
+    delete process.env.PASS_SECRET;
+  } else {
+    process.env.PASS_SECRET = previousSecret;
+  }
+}
 
 describe("episode-0-actions", () => {
   beforeEach(() => {
@@ -145,16 +162,181 @@ describe("episode-0-actions", () => {
   });
 
   describe("updateShortlistAction", () => {
-    it("updates shortlist status to shortlisted and revalidates", async () => {
+    it("issues passes and emails every member after shortlisting", async () => {
       setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      issuePassesForTeamMock.mockResolvedValueOnce({ ok: true, issued: 2 });
+      getTeamDetailMock.mockResolvedValueOnce({
+        team: { name: "Alpha" },
+        members: [
+          { firstName: "Ada", srmEmail: "ada@srmist.edu.in" },
+          { firstName: "Lin", srmEmail: "lin@srmist.edu.in" },
+        ],
+      });
+      sendEmailMock.mockResolvedValue({ ok: true });
 
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
       const res = await updateShortlistAction("team-1", "shortlisted");
+      restorePassSecret(previousSecret);
+
       expect(res).toEqual({ ok: true });
       expect(setShortlistStatusMock).toHaveBeenCalledWith(expect.anything(), {
         teamId: "team-1",
         staffId: "admin-1",
         status: "shortlisted",
       });
+      expect(issuePassesForTeamMock).toHaveBeenCalledWith(expect.anything(), {
+        teamId: "team-1",
+        secret: "test-pass-secret",
+      });
+      expect(sendEmailMock).toHaveBeenCalledTimes(2);
+      expect(sendEmailMock).toHaveBeenCalledWith({
+        to: "ada@srmist.edu.in",
+        template: "checkin-pass-ready",
+        props: {
+          firstName: "Ada",
+          teamName: "Alpha",
+          dashboardUrl: "https://pandora.msasrm.in/team",
+        },
+      });
+      expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+    });
+
+    it("does not email members again when passes already exist", async () => {
+      setShortlistStatusMock.mockResolvedValue({ ok: true });
+      issuePassesForTeamMock
+        .mockResolvedValueOnce({ ok: true, issued: 2 })
+        .mockResolvedValueOnce({ ok: true, issued: 0 });
+      getTeamDetailMock.mockResolvedValueOnce({
+        team: { name: "Alpha" },
+        members: [
+          { firstName: "Ada", srmEmail: "ada@srmist.edu.in" },
+          { firstName: "Lin", srmEmail: "lin@srmist.edu.in" },
+        ],
+      });
+      sendEmailMock.mockResolvedValue({ ok: true });
+
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
+      try {
+        await updateShortlistAction("team-1", "shortlisted");
+        await updateShortlistAction("team-1", "shortlisted");
+      } finally {
+        restorePassSecret(previousSecret);
+      }
+
+      expect(issuePassesForTeamMock).toHaveBeenCalledTimes(2);
+      expect(getTeamDetailMock).toHaveBeenCalledTimes(1);
+      expect(sendEmailMock).toHaveBeenCalledTimes(2);
+      expect(revalidatePathMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the shortlist but warns when the pass secret is missing", async () => {
+      setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      const previousSecret = process.env.PASS_SECRET;
+      delete process.env.PASS_SECRET;
+
+      const res = await updateShortlistAction("team-1", "shortlisted");
+      restorePassSecret(previousSecret);
+
+      expect(res).toEqual({
+        ok: true,
+        warning: "Team shortlisted, but event passes could not be issued because PASS_SECRET is not configured",
+      });
+      expect(issuePassesForTeamMock).not.toHaveBeenCalled();
+      expect(sendEmailMock).not.toHaveBeenCalled();
+      expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+    });
+
+    it("warns when pass-ready emails cannot be sent without undoing the shortlist", async () => {
+      setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      issuePassesForTeamMock.mockResolvedValueOnce({ ok: true, issued: 2 });
+      getTeamDetailMock.mockResolvedValueOnce({
+        team: { name: "Alpha" },
+        members: [
+          { firstName: "Ada", srmEmail: "ada@srmist.edu.in" },
+          { firstName: "Lin", srmEmail: "lin@srmist.edu.in" },
+        ],
+      });
+      sendEmailMock
+        .mockResolvedValueOnce({ ok: true })
+        .mockResolvedValueOnce({ ok: false, error: "Mail service unavailable" });
+
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
+      const res = await updateShortlistAction("team-1", "shortlisted");
+      restorePassSecret(previousSecret);
+
+      expect(res).toEqual({
+        ok: true,
+        warning: "Team shortlisted and passes issued, but could not send email to 1 of 2 member(s)",
+      });
+      expect(issuePassesForTeamMock).toHaveBeenCalledTimes(1);
+      expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+    });
+
+    it("warns when pass issuance reports that the team is not shortlisted", async () => {
+      setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      issuePassesForTeamMock.mockResolvedValueOnce({ ok: false, reason: "not_shortlisted" });
+
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
+      let res: Awaited<ReturnType<typeof updateShortlistAction>>;
+      try {
+        res = await updateShortlistAction("team-1", "shortlisted");
+      } finally {
+        restorePassSecret(previousSecret);
+      }
+
+      expect(res!).toEqual({
+        ok: true,
+        warning: "Team shortlisted, but event passes could not be issued; shortlist again to retry",
+      });
+      expect(getTeamDetailMock).not.toHaveBeenCalled();
+      expect(sendEmailMock).not.toHaveBeenCalled();
+      expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+    });
+
+    it("warns when member details are unavailable after issuing passes", async () => {
+      setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      issuePassesForTeamMock.mockResolvedValueOnce({ ok: true, issued: 2 });
+      getTeamDetailMock.mockResolvedValueOnce(null);
+
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
+      let res: Awaited<ReturnType<typeof updateShortlistAction>>;
+      try {
+        res = await updateShortlistAction("team-1", "shortlisted");
+      } finally {
+        restorePassSecret(previousSecret);
+      }
+
+      expect(res!).toEqual({
+        ok: true,
+        warning: "Team shortlisted and passes issued, but member emails could not be prepared",
+      });
+      expect(sendEmailMock).not.toHaveBeenCalled();
+      expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+    });
+
+    it("warns and revalidates when pass issuance throws after shortlisting", async () => {
+      setShortlistStatusMock.mockResolvedValueOnce({ ok: true });
+      issuePassesForTeamMock.mockRejectedValueOnce(new Error("Database timeout"));
+
+      const previousSecret = process.env.PASS_SECRET;
+      process.env.PASS_SECRET = "test-pass-secret";
+      let res: Awaited<ReturnType<typeof updateShortlistAction>>;
+      try {
+        res = await updateShortlistAction("team-1", "shortlisted");
+      } finally {
+        restorePassSecret(previousSecret);
+      }
+
+      expect(res!).toEqual({
+        ok: true,
+        warning: "Team shortlisted, but event passes could not be issued; shortlist again to retry",
+      });
+      expect(sendEmailMock).not.toHaveBeenCalled();
       expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
     });
 
@@ -169,6 +351,8 @@ describe("episode-0-actions", () => {
         status: "not_shortlisted",
       });
       expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
+      expect(issuePassesForTeamMock).not.toHaveBeenCalled();
+      expect(sendEmailMock).not.toHaveBeenCalled();
     });
 
     it("handles unknown team gracefully", async () => {
