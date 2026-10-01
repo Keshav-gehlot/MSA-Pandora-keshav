@@ -10,12 +10,15 @@ const mockGetStorage = vi.fn();
 const mockRequireStaff = vi.fn();
 
 vi.mock("@pandora/db", () => ({
-  getDb: () => mockGetDb(),
   lookupPass: (...args: unknown[]) => mockLookupPass(...args),
   checkIn: (...args: unknown[]) => mockCheckIn(...args),
   searchCheckin: (...args: unknown[]) => mockSearchCheckin(...args),
   attendanceSummary: (...args: unknown[]) => mockAttendanceSummary(...args),
   getStorage: () => mockGetStorage(),
+}));
+
+vi.mock("../../lib/cf-db", () => ({
+  getDb: () => mockGetDb(),
 }));
 
 vi.mock("../../lib/session", () => ({

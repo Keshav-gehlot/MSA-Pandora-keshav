@@ -8,6 +8,7 @@
     "start": "next start --port 3001",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "eslint .",
+    "test": "vitest run",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && wrangler dev"
   },
