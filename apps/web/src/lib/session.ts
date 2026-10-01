@@ -30,9 +30,9 @@ export type SignedInMember = NonNullable<Awaited<ReturnType<typeof getMemberWith
 // sign-in when there's no session or the member no longer exists.
 export async function requireMember(): Promise<SignedInMember> {
   const id = await currentMemberId();
-  if (!id) redirect("/?signin=1");
+  if (!id) redirect("/sign-in");
   const found = await getMemberWithTeam(await getDb(), id);
-  if (!found) redirect("/?signin=1");
+  if (!found) redirect("/sign-in");
   return found;
 }
 
