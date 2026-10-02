@@ -7,8 +7,10 @@ describe("@pandora/ui exports", () => {
   it.each([
     "Wordmark",
     "AppProviders",
+    "Badge",
     "Banner",
     "Button",
+    "Card",
     "Field",
     "FieldLabel",
     "FieldStatus",
@@ -21,6 +23,7 @@ describe("@pandora/ui exports", () => {
     "Step",
     "Stepper",
     "Text",
+    "TextArea",
     "TextInput",
     "VStack",
   ])("exports %s", (name) => {
