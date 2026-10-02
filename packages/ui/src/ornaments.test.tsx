@@ -14,6 +14,12 @@ describe("CornerOrnament", () => {
     expect(renderToStaticMarkup(<CornerOrnament corner="bottom-right" />)).toContain("scale(-1, -1)");
   });
 
+  it("sits inset from the edges when asked to", () => {
+    const html = renderToStaticMarkup(<CornerOrnament corner="top-right" inset={12} />);
+    expect(html).toContain("top:12px");
+    expect(html).toContain("right:12px");
+  });
+
   it("is gold unless a parent sets --ornament-color", () => {
     expect(renderToStaticMarkup(<CornerOrnament />)).toContain("var(--ornament-color, var(--pandora-gold))");
   });
@@ -28,6 +34,14 @@ describe("OrnamentFrame", () => {
     );
     expect(html.match(/<svg/g)).toHaveLength(4);
     expect(html).toContain("<p>Track A</p>");
+  });
+});
+
+describe("OrnamentFrame as a span", () => {
+  it("can render a span so it is valid inside a button", () => {
+    const html = renderToStaticMarkup(<OrnamentFrame as="span">x</OrnamentFrame>);
+    expect(html.startsWith("<span")).toBe(true);
+    expect(html).not.toContain("<div");
   });
 });
 

@@ -14,3 +14,16 @@ export function AppProviders({ children, linkComponent }: { children: ReactNode;
     </Theme>
   );
 }
+
+/**
+ * Forces Astryx's light colours for everything inside it. The public landing page is a light design (white
+ * panels over painted backgrounds), so its buttons and fields must not switch to dark-mode colours just because
+ * the visitor's system is dark.
+ */
+export function LightScope({ children }: { children: ReactNode }) {
+  return (
+    <Theme theme={msaTheme} mode="light">
+      {children}
+    </Theme>
+  );
+}

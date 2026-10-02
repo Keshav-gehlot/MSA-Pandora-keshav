@@ -7,6 +7,7 @@ describe("@pandora/ui exports", () => {
   it.each([
     "Wordmark",
     "AppProviders",
+    "LightScope",
     "CornerOrnament",
     "DiamondRule",
     "OrnamentFrame",

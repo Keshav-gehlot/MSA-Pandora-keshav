@@ -20,7 +20,17 @@ const PLACE: Record<Corner, CSSProperties> = {
  * The stepped, maze-like corner mark from the Figma design, drawn once for the top-left and mirrored for the other
  * corners. Gold by default; set the `--ornament-color` custom property on it or a parent to recolour.
  */
-export function CornerOrnament({ corner = "top-left", size = 50 }: { corner?: Corner; size?: number }) {
+export function CornerOrnament({
+  corner = "top-left",
+  size = 50,
+  inset = 0,
+}: {
+  corner?: Corner;
+  size?: number;
+  /** Distance in pixels from the box's edges. */
+  inset?: number;
+}) {
+  const place = Object.fromEntries(Object.entries(PLACE[corner]).map(([edge]) => [edge, inset]));
   return (
     <svg
       aria-hidden="true"
@@ -35,7 +45,7 @@ export function CornerOrnament({ corner = "top-left", size = 50 }: { corner?: Co
         pointerEvents: "none",
         color: "var(--ornament-color, var(--pandora-gold))",
         transform: FLIP[corner],
-        ...PLACE[corner],
+        ...place,
       }}
     >
       <rect x="1" y="1" width="18" height="18" />
@@ -55,27 +65,38 @@ export type OrnamentFrameProps = {
   children: ReactNode;
   /** Corner mark size in pixels. */
   cornerSize?: number;
+  /** Distance in pixels the corner marks sit in from the frame's edges. */
+  inset?: number;
   /** Draw a border in the ornament colour around the frame. */
   bordered?: boolean;
+  /** Element to render. Use "span" inside a button or link, where a div is not allowed. */
+  as?: "div" | "span";
   style?: CSSProperties;
 };
 
 /** A positioned box with the corner ornament in all four corners; the track cards and the hero use it. */
-export function OrnamentFrame({ children, cornerSize = 50, bordered = false, style }: OrnamentFrameProps) {
+export function OrnamentFrame({
+  children,
+  cornerSize = 50,
+  inset = 0,
+  bordered = false,
+  as: Tag = "div",
+  style,
+}: OrnamentFrameProps) {
   return (
-    <div
+    <Tag
       style={{
         position: "relative",
         border: bordered ? "2px solid var(--ornament-color, var(--pandora-gold))" : undefined,
         ...style,
       }}
     >
-      <CornerOrnament corner="top-left" size={cornerSize} />
-      <CornerOrnament corner="top-right" size={cornerSize} />
-      <CornerOrnament corner="bottom-left" size={cornerSize} />
-      <CornerOrnament corner="bottom-right" size={cornerSize} />
+      <CornerOrnament corner="top-left" size={cornerSize} inset={inset} />
+      <CornerOrnament corner="top-right" size={cornerSize} inset={inset} />
+      <CornerOrnament corner="bottom-left" size={cornerSize} inset={inset} />
+      <CornerOrnament corner="bottom-right" size={cornerSize} inset={inset} />
       {children}
-    </div>
+    </Tag>
   );
 }
 

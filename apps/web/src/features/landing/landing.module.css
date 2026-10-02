@@ -1,0 +1,1005 @@
+/* Layout for the public landing page. Colours come from the --pandora-* tokens in @pandora/ui. Numbers are the
+   Figma desktop sizes (1512px frame); clamp() scales them down for phones. */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: 96px;
+  padding-inline: 48px;
+  background: var(--pandora-paper);
+}
+.brand {
+  justify-self: start;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 36px;
+  white-space: nowrap;
+  color: var(--pandora-ink);
+  text-decoration: none;
+}
+.links {
+  display: flex;
+  gap: 8px;
+}
+.link {
+  width: 160px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 30px;
+  color: var(--pandora-mute);
+  text-decoration: none;
+}
+.link:hover {
+  color: var(--pandora-ink);
+}
+.actions {
+  --nav-button-width: 128px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .nav {
+    height: 64px;
+    padding-inline: 16px;
+    grid-template-columns: 1fr auto;
+  }
+  .links {
+    display: none;
+  }
+  .brand {
+    font-size: 20px;
+  }
+  .actions {
+    gap: 8px;
+    --nav-button-width: 88px;
+  }
+}
+
+/* The landscape sits behind the whole hero, fading to white under the nav. */
+.hero {
+  position: relative;
+  background: var(--pandora-paper);
+  padding-top: clamp(0px, 2vw, 32px);
+}
+.heroArt {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: clamp(420px, 56vw, 854px);
+  overflow: hidden;
+}
+.heroArtImage {
+  position: absolute;
+  inset: -40px 0;
+  background: url("/landing/hero-landscape.webp") center / cover no-repeat;
+  will-change: transform;
+}
+.heroArt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--pandora-paper) 0, rgba(255, 255, 255, 0) 38%);
+}
+
+/* Before scripts run, the hero's animated parts start hidden (html.motion is set by a tiny inline script when the
+   visitor allows motion) so the entrance doesn't flash. If scripts never finish, the failsafe reveals them. */
+:global(html.motion) .pane {
+  clip-path: inset(100% 0 0 0);
+  animation: pandora-failsafe 0s 4s forwards;
+}
+:global(html.motion) .corners,
+:global(html.motion) .titleBox h1 {
+  opacity: 0;
+  animation: pandora-failsafe 0s 4s forwards;
+}
+@keyframes pandora-failsafe {
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :global(html) {
+    scroll-behavior: smooth;
+  }
+}
+
+.skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--pandora-ink);
+  color: var(--pandora-paper);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip:focus-visible {
+  transform: none;
+}
+.page [id] {
+  scroll-margin-top: 88px;
+}
+.brand:focus-visible,
+.link:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.footer {
+  padding: 32px clamp(16px, 6.35vw, 96px);
+  background: var(--pandora-ink);
+  color: var(--pandora-paper);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+}
+.footer p {
+  margin: 0;
+  color: var(--pandora-paper);
+}
+.footerMuted {
+  color: var(--pandora-mute);
+}
+.footer a {
+  color: var(--pandora-paper);
+}
+
+.page {
+  background: var(--pandora-paper);
+  color-scheme: light;
+  /* BT Beau Sans, the design's typeface, for this page only; Astryx components pick it up through these tokens. */
+  --font-family-body: var(--pandora-font-sans), Figtree, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: var(--font-family-body);
+  font-family: var(--font-family-body);
+  /* The design's accent is ink, not the app-wide blue: Astryx primary buttons and steppers follow it. */
+  --color-accent: var(--pandora-ink);
+  --color-on-accent: var(--pandora-paper);
+}
+
+.column {
+  position: relative;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+/* Four see-through panes divided by white strips (24px at full size). */
+.panes {
+  display: flex;
+  height: clamp(110px, 24vw, 231px);
+}
+.pane {
+  flex: 1;
+  border-inline: clamp(4px, 0.8vw, 12px) solid var(--pandora-paper);
+}
+.pane:first-child {
+  border-left-width: clamp(8px, 1.6vw, 24px);
+}
+.pane:last-child {
+  border-right-width: clamp(8px, 1.6vw, 24px);
+}
+
+.titleBox {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: clamp(180px, 28vw, 264px);
+  padding: 30px clamp(48px, 11vw, 120px) 0;
+  background: var(--pandora-paper);
+  color: var(--pandora-ink);
+  text-align: center;
+}
+.title {
+  display: block;
+  width: min(503px, 100%);
+  height: auto;
+}
+
+.ideology {
+  position: relative;
+  background: var(--pandora-paper);
+  padding: clamp(40px, 8vw, 141px) clamp(24px, 5vw, 72px) clamp(40px, 6vw, 50px);
+  text-align: center;
+}
+.ideologyHead {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  color: var(--pandora-violet);
+}
+.ideologyTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 36px;
+  color: var(--pandora-ink);
+}
+.ideologyBody {
+  margin: 24px 0 0;
+  font-size: clamp(16px, 1.4vw, 20px);
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--pandora-mute);
+}
+@media (min-width: 700px) {
+  .ideologyBody {
+    text-align: justify;
+    hyphens: auto;
+  }
+}
+.ideologyRule {
+  width: 204px; /* twelve 17px diamonds, so none is cut off */
+  margin: 32px auto 0;
+  color: var(--pandora-ink);
+}
+.zig {
+  transform-origin: center;
+}
+
+.corners {
+  position: absolute;
+  inset: 30px 24px 0 24px;
+  pointer-events: none;
+}
+.corners svg {
+  width: clamp(44px, 9vw, 100px);
+  height: clamp(44px, 9vw, 100px);
+}
+
+/* ---- A Challenge worth entering ---- */
+.challenge {
+  position: relative;
+  overflow: hidden;
+  color: var(--pandora-paper);
+  background: var(--pandora-ink);
+  padding-block: clamp(48px, 8vw, 117px) clamp(48px, 7vw, 100px);
+}
+.challengeArt {
+  position: absolute;
+  inset: -60px 0;
+  background: url("/landing/dream-blue.webp") center / cover no-repeat;
+  filter: grayscale(1) brightness(0.55);
+  will-change: transform;
+}
+.challengeInner {
+  position: relative;
+  padding-inline: clamp(16px, 6.35vw, 96px);
+}
+.challengeTop {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+.challengeTitle {
+  color: var(--pandora-paper);
+  margin: 0;
+  font-size: clamp(32px, 3.2vw, 48px);
+  font-weight: 700;
+  line-height: 1.5;
+}
+.challengeSub {
+  color: var(--pandora-paper);
+  margin: 0;
+  font-size: clamp(18px, 1.6vw, 24px);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.statement {
+  color: var(--pandora-paper);
+  margin: 0;
+  max-width: 872px;
+  font-size: clamp(26px, 3.2vw, 48px);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.statementAccent {
+  color: var(--pandora-violet);
+}
+.statementBreak {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .challengeTop {
+    grid-template-columns: 448px 1fr;
+    gap: 0;
+    min-height: 220px;
+    align-items: start;
+  }
+  .statement {
+    margin-top: 90px;
+  }
+  .statementBreak {
+    display: inline;
+  }
+}
+
+.facts {
+  position: relative;
+  margin: clamp(32px, 6vw, 100px) 0 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 0 clamp(16px, 6.35vw, 96px);
+  background: rgba(30, 30, 30, 0.94);
+  border-block: 1px solid var(--pandora-paper);
+}
+.fact {
+  min-height: 160px;
+  padding: 16px 0 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+}
+.fact:first-child {
+  border-top: 0;
+}
+.factLabel {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+.factValue {
+  color: var(--pandora-paper);
+  margin: 0;
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.factCurrency {
+  margin-right: 4px;
+  font-size: 16px;
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+}
+.factNote {
+  margin: 0;
+  max-width: 424px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+@media (min-width: 700px) {
+  .facts {
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 32px;
+  }
+  .fact:nth-child(2) {
+    border-top: 0;
+  }
+}
+@media (min-width: 1100px) {
+  .facts {
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 0;
+  }
+  .fact:nth-child(-n + 3) {
+    border-top: 0;
+  }
+  .fact:nth-child(n + 4) {
+    border-top: 1px solid rgba(255, 255, 255, 0.35);
+  }
+}
+
+.script {
+  margin: clamp(32px, 5vw, 80px) 0 0;
+  font-family: var(--pandora-font-script, "Segoe Script", cursive);
+  font-size: clamp(36px, 6.35vw, 96px);
+  line-height: 1;
+  color: var(--pandora-violet);
+}
+.scriptLine {
+  height: 2px;
+  margin-top: 8px;
+  background: var(--pandora-violet);
+}
+
+/* ---- Tracks ---- */
+.tracks {
+  position: relative;
+  overflow: hidden;
+  background: var(--pandora-paper);
+  padding-block: clamp(48px, 7vw, 100px);
+}
+.tracksBg {
+  position: absolute;
+  inset: 0;
+  background: url("/landing/tracks-ice.webp") center / cover no-repeat;
+}
+.tracksBg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 80%, var(--pandora-paper) 100%);
+}
+.tracksInner {
+  position: relative;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 2vw, 24px);
+}
+.tracksHeading {
+  margin: 0 0 clamp(32px, 5vw, 64px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-paper);
+}
+.tracksLead {
+  font-size: clamp(18px, 1.6vw, 24px);
+}
+.tracksBig {
+  padding: 0 0.25em;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: clamp(30px, 3.2vw, 48px);
+  font-weight: 700;
+  color: var(--pandora-ink);
+}
+
+.trackCards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+.trackCard {
+  display: flex;
+  min-height: 300px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+.trackCard:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 4px;
+}
+.trackCard:hover,
+.trackCardSelected {
+  transform: translateY(-8px);
+}
+.trackCardSelected {
+  filter: drop-shadow(0 12px 24px rgba(30, 30, 30, 0.25));
+}
+.trackCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px 24px;
+}
+.trackId {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 48px;
+  color: var(--pandora-gold);
+}
+.trackName {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 36px;
+  color: var(--pandora-ink);
+}
+.trackSummary {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+@media (min-width: 640px) {
+  .trackCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1100px) {
+  .trackCards {
+    grid-template-columns: repeat(4, 1fr);
+    align-items: start;
+  }
+  .trackCard {
+    min-height: 390px;
+  }
+  .trackCardRaised {
+    margin-top: -53px;
+  }
+}
+
+.trackPanel {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: 24px;
+  background: var(--pandora-paper);
+  border: 2px solid var(--pandora-gold);
+}
+.trackPanelCell {
+  padding: 14px 18px 20px;
+  border-top: 2px solid var(--pandora-gold);
+}
+.trackPanelCell:first-child {
+  border-top: 0;
+}
+.trackPanelTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 36px;
+  color: var(--pandora-ink);
+}
+.trackPanelText {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+@media (min-width: 900px) {
+  .trackPanel {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .trackPanelCell {
+    border-top: 0;
+    border-left: 2px solid var(--pandora-gold);
+  }
+  .trackPanelCell:first-child {
+    border-left: 0;
+  }
+}
+
+/* ---- Timeline ---- */
+.timeline {
+  background: var(--pandora-paper);
+  color: var(--pandora-ink);
+  padding-block: clamp(40px, 6vw, 80px);
+}
+.timelineInner {
+  max-width: 1512px;
+  margin-inline: auto;
+}
+.timelineTitle {
+  margin: 0 0 clamp(24px, 4vw, 48px);
+  padding-inline: clamp(16px, 6.35vw, 96px);
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--pandora-ink);
+}
+
+/* Native sideways scroll: the default, and the whole story on phones and with reduced motion. */
+.timelineViewport {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: clamp(16px, 6.35vw, 96px);
+  padding-block: 8px;
+}
+.timelineViewport:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: -3px;
+}
+.timelineTrack {
+  position: relative;
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  padding: 0 clamp(16px, 6.35vw, 96px);
+  list-style: none;
+  gap: 32px;
+}
+
+/* Each milestone is a column: card, node on the line, empty space. The line runs through the nodes. */
+.milestone {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  flex: 0 0 min(300px, 78vw);
+  height: 460px;
+  scroll-snap-align: start;
+}
+.milestone::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -16px;
+  right: -16px;
+  height: 2px;
+  background: var(--pandora-ink);
+  transform: translateY(-1px);
+}
+.milestoneCard {
+  position: relative;
+  align-self: end;
+  grid-row: 1;
+  margin-bottom: 28px;
+  padding: 18px 20px 20px;
+  border: 2px solid var(--timeline-color);
+  border-radius: 16px;
+  background: var(--pandora-paper);
+}
+.milestoneBelow .milestoneCard {
+  grid-row: 3;
+  align-self: start;
+  margin-bottom: 0;
+  margin-top: 28px;
+}
+.milestoneNode {
+  grid-row: 2;
+  justify-self: start;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  margin-left: 24px;
+  border-radius: 50%;
+  background: var(--pandora-ink);
+  box-shadow: 0 0 0 4px var(--pandora-paper), 0 0 0 7px var(--timeline-color);
+}
+.milestoneDate {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--pandora-mute);
+}
+.milestoneTitle {
+  margin: 2px 0 6px;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+  color: var(--pandora-ink);
+}
+.milestoneText {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+.violet {
+  --timeline-color: var(--pandora-violet);
+}
+.sky {
+  --timeline-color: var(--pandora-sky);
+}
+.rose {
+  --timeline-color: var(--pandora-rose);
+}
+.gold {
+  --timeline-color: var(--pandora-gold);
+}
+
+/* While GSAP has the section pinned (it sets data-pinned), the sideways movement is driven by scroll, so the
+   native scrollbar and snapping step aside. */
+.timeline[data-pinned="true"] {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding-top: 96px; /* clears the sticky nav */
+  display: flex;
+  align-items: center;
+}
+.timeline[data-pinned="true"] .timelineInner {
+  width: 100%;
+}
+.timeline[data-pinned="true"] .timelineViewport {
+  overflow: hidden;
+  scroll-snap-type: none;
+}
+.timeline[data-pinned="true"] .milestone {
+  flex-basis: 360px;
+  height: min(480px, 62vh);
+}
+
+/* ---- About us and past events ---- */
+.about {
+  position: relative;
+  overflow: hidden;
+  background: var(--pandora-ink);
+  color: var(--pandora-paper);
+  padding-block: clamp(40px, 6vw, 96px);
+}
+.aboutBg {
+  position: absolute;
+  inset: 0;
+  background: url("/landing/about-pines.webp") center / cover no-repeat;
+  filter: grayscale(1) brightness(0.4);
+}
+.aboutInner {
+  position: relative;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 3vw, 48px);
+}
+.aboutHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.aboutKicker {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-mute);
+}
+.aboutTitle {
+  margin: 0;
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.aboutActive {
+  color: var(--pandora-paper);
+  text-decoration: underline wavy var(--pandora-paper) 1px;
+  text-underline-offset: 6px;
+}
+.aboutIdle {
+  color: var(--pandora-mute);
+}
+.aboutControls {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.aboutControls button {
+  width: 56px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--pandora-paper);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.aboutControls button + button {
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+}
+.aboutControls button:disabled {
+  color: var(--pandora-mute);
+  cursor: default;
+}
+.aboutControls button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.aboutControls button:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: -3px;
+}
+
+.aboutScroller {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 24px;
+}
+.aboutScroller::-webkit-scrollbar {
+  display: none;
+}
+.aboutScroller:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 4px;
+}
+.aboutSlide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+}
+.aboutCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: clamp(12px, 1.5vw, 16px);
+  border-radius: 24px;
+  background: var(--pandora-ink);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.aboutPhoto {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+.aboutPhotoImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1);
+}
+.aboutPhotoCorners {
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+}
+.aboutText {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px clamp(4px, 1vw, 16px) 56px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-paper);
+}
+.aboutText p {
+  margin: 0;
+  color: var(--pandora-paper);
+}
+.aboutSlideTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 32px;
+  color: var(--pandora-paper);
+}
+.aboutSignature {
+  position: absolute;
+  right: clamp(12px, 3vw, 40px);
+  bottom: clamp(4px, 1vw, 12px);
+  margin: 0;
+  font-family: var(--pandora-font-script, "Segoe Script", cursive);
+  font-size: clamp(18px, 2.6vw, 40px);
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--pandora-violet);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+@media (min-width: 900px) {
+  .aboutCard {
+    grid-template-columns: 1.15fr 1fr;
+    align-items: stretch;
+  }
+  .aboutPhoto {
+    aspect-ratio: auto;
+    min-height: 360px;
+  }
+  .aboutText {
+    justify-content: center;
+    padding: 24px 24px 72px 8px;
+    text-align: justify;
+    hyphens: auto;
+  }
+}
+
+/* ---- Register your team ---- */
+.register {
+  position: relative;
+  overflow: hidden;
+  background: var(--pandora-paper);
+  padding-block: clamp(40px, 6vw, 96px);
+}
+.registerBg {
+  position: absolute;
+  inset: 0;
+  background: url("/landing/dream-blue.webp") center / cover no-repeat;
+}
+.registerBg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--pandora-paper) 0, rgba(255, 255, 255, 0) 22%);
+}
+.registerInner {
+  position: relative;
+  max-width: 1320px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 3vw, 48px);
+}
+.registerKicker {
+  margin: 0;
+  padding-top: clamp(16px, 4vw, 48px);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-ink);
+}
+.registerTitle {
+  margin: 0 0 24px;
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--pandora-paper);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+.registerMark {
+  text-decoration: underline wavy var(--pandora-paper) 1px;
+  text-underline-offset: 6px;
+}
+.registerCard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding: 64px clamp(20px, 3vw, 48px) 28px; /* clears the corner marks */
+  color: var(--pandora-ink);
+}
+.registerForm {
+  min-width: 0;
+}
+.registerNotes {
+  align-self: start;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: #f1f1f1;
+}
+.registerNotesTitle {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 28px;
+  color: var(--pandora-mute);
+}
+.registerNotesList {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: var(--pandora-ink);
+}
+@media (min-width: 1000px) {
+  .registerCard {
+    padding-block: 48px;
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
+    gap: 40px;
+  }
+  .registerNotes {
+    position: sticky;
+    top: 112px;
+  }
+}
+
+/* The registration form's Astryx fields, dressed like the Figma card: soft grey fields, larger labels. */
+.registerForm :global(.astryx-text-input),
+.registerForm :global(.astryx-selector) {
+  min-height: 48px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: #ececec;
+  font-size: 18px;
+}
+.registerForm :global(.astryx-text-input:focus-within),
+.registerForm :global(.astryx-selector:focus-within) {
+  border-color: var(--pandora-ink);
+  background: var(--pandora-paper);
+}
+.registerForm :global(.astryx-field-label) {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--pandora-mute);
+}
+.registerForm :global(.astryx-button) {
+  min-height: 44px;
+  border-radius: 8px;
+  font-weight: 700;
+}
