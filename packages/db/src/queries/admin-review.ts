@@ -69,6 +69,9 @@ export async function createNotification(
   });
 }
 
+/** The most recent notices shown on the console; older ones stay in the database. */
+const NOTIFICATION_LIST_LIMIT = 100;
+
 export async function listNotifications(
   db: Db,
 ): Promise<
@@ -92,7 +95,13 @@ export async function listNotifications(
     })
     .from(notifications)
     .leftJoin(teams, eq(notifications.teamId, teams.id))
-    .orderBy(desc(notifications.createdAt));
+    .orderBy(desc(notifications.createdAt), desc(notifications.id))
+    .limit(NOTIFICATION_LIST_LIMIT);
+}
+
+export async function noticeTeamExists(db: Db, teamId: string): Promise<boolean> {
+  const [row] = await db.select({ id: teams.id }).from(teams).where(eq(teams.id, teamId)).limit(1);
+  return row !== undefined;
 }
 
 export async function listNoticeTeams(db: Db): Promise<Array<{ id: string; name: string }>> {

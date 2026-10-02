@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type FormEvent } from "react";
 import { sendNotice } from "./actions";
 
 export type NoticeTeam = { id: string; name: string };
@@ -21,7 +21,9 @@ export function NoticeComposer({ teams }: { teams: NoticeTeam[] }) {
 
   const selectedTeam = teams.find((team) => team.id === teamId) ?? null;
 
-  const handleSubmit = () => {
+  // onSubmit, not a React 19 form action: an action resets the form when it returns, wiping what was typed.
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (scope === "team" && !teamId) {
       setMessage({ type: "error", text: "Choose a team before sending this notice" });
       return;
@@ -51,13 +53,13 @@ export function NoticeComposer({ teams }: { teams: NoticeTeam[] }) {
 
   return (
     <form
-      action={handleSubmit}
+      onSubmit={handleSubmit}
       style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
     >
       {message && (
         <p
           role="status"
-          style={{ margin: 0, color: message.type === "success" ? "#065f46" : "#991b1b", fontSize: "0.875rem" }}
+          style={{ margin: 0, color: message.type === "success" ? "var(--color-text-green)" : "var(--color-text-red)", fontSize: "0.875rem" }}
         >
           {message.text}
         </p>
@@ -134,7 +136,7 @@ export function NoticeComposer({ teams }: { teams: NoticeTeam[] }) {
       <button
         type="submit"
         disabled={isPending}
-        style={{ alignSelf: "flex-start", padding: "0.625rem 1rem", border: 0, borderRadius: "0.375rem", background: "var(--color-accent, #2563eb)", color: "#ffffff", font: "inherit", fontWeight: 600, cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? 0.7 : 1 }}
+        style={{ alignSelf: "flex-start", padding: "0.625rem 1rem", border: 0, borderRadius: "0.375rem", background: "var(--color-accent, #2563eb)", color: "var(--color-on-accent, #ffffff)", font: "inherit", fontWeight: 600, cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? 0.7 : 1 }}
       >
         {isPending ? "Sending..." : "Send notice"}
       </button>

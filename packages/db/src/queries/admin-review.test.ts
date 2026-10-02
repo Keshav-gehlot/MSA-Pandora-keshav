@@ -18,6 +18,7 @@ import {
   decidePayment,
   listNotifications,
   listNoticeTeams,
+  noticeTeamExists,
   listPendingEditRequests,
   listPendingPayments,
   listSubmissions,
@@ -594,6 +595,24 @@ describe("admin notification queries", () => {
         teamName: "Alpha",
       },
     ]);
+  });
+
+  it("lists at most 100 notices", async () => {
+    await db.insert(notifications).values(
+      Array.from({ length: 101 }, (_, i) => ({
+        teamId: null,
+        title: `Notice ${i}`,
+        body: "Body text.",
+        createdBy: staffId,
+      })),
+    );
+
+    expect(await listNotifications(db)).toHaveLength(100);
+  });
+
+  it("tells whether a team exists", async () => {
+    await expect(noticeTeamExists(db, teamId)).resolves.toBe(true);
+    await expect(noticeTeamExists(db, "00000000-0000-4000-8000-000000000000")).resolves.toBe(false);
   });
 
   it("lists teams for the notice target picker", async () => {

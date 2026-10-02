@@ -1,10 +1,12 @@
 "use server";
 
 import { notificationSchema } from "@pandora/core";
-import { createNotification, listNoticeTeams } from "@pandora/db";
+import { createNotification, noticeTeamExists } from "@pandora/db";
 import { revalidatePath } from "next/cache";
 import { getDb } from "../../../lib/cf-db";
 import { requireStaff } from "../../../lib/session";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type SendNoticeResult = { ok: true } | { ok: false; message: string };
 
@@ -24,8 +26,7 @@ export async function sendNotice(input: {
   const db = await getDb();
 
   if (teamId) {
-    const teams = await listNoticeTeams(db);
-    if (!teams.some((team) => team.id === teamId)) {
+    if (!UUID.test(teamId) || !(await noticeTeamExists(db, teamId))) {
       return { ok: false, message: "Choose a valid team" };
     }
   }
