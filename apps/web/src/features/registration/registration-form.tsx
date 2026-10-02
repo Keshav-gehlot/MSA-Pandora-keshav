@@ -347,6 +347,10 @@ useEffect(() => {
 
   window.setTimeout(() => {
     setRegistration(restoredRegistration);
+    // One photo slot per restored member, so a saved 4-member draft can take a Member 4 photo.
+    setMemberPhotos((current) =>
+      restoredRegistration.members.map((_, index) => current[index] ?? null),
+    );
     setStep(restoredStep);
     setStorageHydrated(true);
   }, 0);
