@@ -1,4 +1,8 @@
 export { Wordmark, type WordmarkProps } from "./wordmark";
+export { CornerOrnament, DiamondRule, OrnamentFrame, ZigzagDivider, type Corner, type OrnamentFrameProps } from "./ornaments";
+export { gsap, ScrollTrigger, useGSAP } from "./motion/gsap";
+export { Reveal, type RevealProps } from "./motion/reveal";
+export { usePrefersReducedMotion } from "./motion/use-prefers-reduced-motion";
 export { AppProviders } from "./providers";
 
 // Astryx components the apps use, re-exported so apps import from "@pandora/ui" and never add their own

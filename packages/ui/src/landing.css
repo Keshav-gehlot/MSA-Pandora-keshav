@@ -1,0 +1,14 @@
+/* Colours and type for the public landing page, taken from the MSA Pandora Figma file. Prefixed so they never
+   collide with Astryx's own tokens. */
+:root {
+  --pandora-gold: #f0c845;
+  --pandora-gold-soft: #ffe281;
+  --pandora-violet: #ce9de6;
+  --pandora-rose: #f0457b;
+  --pandora-sky: #92d9ff;
+  --pandora-ink: #1e1e1e;
+  --pandora-mute: #787878;
+  --pandora-paper: #ffffff;
+  /* --pandora-font-script (the script face for accent lines) is set by the app through next/font in its root
+     layout; use it as var(--pandora-font-script, "Segoe Script", cursive). */
+}

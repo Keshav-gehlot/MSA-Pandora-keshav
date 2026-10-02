@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { Mrs_Saint_Delafield } from "next/font/google";
 import type { ReactNode } from "react";
 import { pageTitle, siteConfig } from "@pandora/core";
 import "@pandora/ui/styles.css";
 import { Providers } from "./providers";
+
+// Stand-in for the licensed script face in the Figma design (Cherolina). Swap here when the font files arrive.
+const script = Mrs_Saint_Delafield({ weight: "400", subsets: ["latin"], variable: "--pandora-font-script", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.urls.web),
@@ -12,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={script.variable}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
