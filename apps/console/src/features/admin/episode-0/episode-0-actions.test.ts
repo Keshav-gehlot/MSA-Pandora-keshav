@@ -40,6 +40,7 @@ vi.mock("@pandora/email", () => ({
 
 import {
   fetchSubmissions,
+  resendPassEmailAction,
   submitReviewAction,
   updateShortlistAction,
 } from "./episode-0-actions";
@@ -269,7 +270,7 @@ describe("episode-0-actions", () => {
 
       expect(res).toEqual({
         ok: true,
-        warning: "Team shortlisted and passes issued, but could not send email to 1 of 2 member(s)",
+        warning: "Team shortlisted and passes issued, but could not send email to 1 of 2 member(s). Use \"Resend pass email\" to retry",
       });
       expect(issuePassesForTeamMock).toHaveBeenCalledTimes(1);
       expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
@@ -313,7 +314,7 @@ describe("episode-0-actions", () => {
 
       expect(res!).toEqual({
         ok: true,
-        warning: "Team shortlisted and passes issued, but member emails could not be prepared",
+        warning: "Team shortlisted and passes issued, but member emails could not be prepared. Use \"Resend pass email\" to retry",
       });
       expect(sendEmailMock).not.toHaveBeenCalled();
       expect(revalidatePathMock).toHaveBeenCalledWith("/episode-0");
@@ -360,6 +361,48 @@ describe("episode-0-actions", () => {
 
       const res = await updateShortlistAction("team-unknown", "shortlisted");
       expect(res).toEqual({ ok: false, message: "Team not found" });
+    });
+  });
+  describe("resendPassEmailAction", () => {
+    const members = [
+      { firstName: "Ada", srmEmail: "ada@srmist.edu.in" },
+      { firstName: "Lin", srmEmail: "lin@srmist.edu.in" },
+    ];
+
+    it("emails every member of a shortlisted team without issuing passes", async () => {
+      getTeamDetailMock.mockResolvedValueOnce({ team: { name: "Alpha", shortlistStatus: "shortlisted" }, members });
+      sendEmailMock.mockResolvedValue({ ok: true });
+
+      expect(await resendPassEmailAction("team-1")).toEqual({ ok: true });
+      expect(requireStaffMock).toHaveBeenCalledWith("admin");
+      expect(sendEmailMock).toHaveBeenCalledTimes(2);
+      expect(issuePassesForTeamMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses a team that is not shortlisted", async () => {
+      getTeamDetailMock.mockResolvedValueOnce({ team: { name: "Alpha", shortlistStatus: "pending" }, members });
+
+      expect(await resendPassEmailAction("team-1")).toEqual({
+        ok: false,
+        message: "Only shortlisted teams have event passes",
+      });
+      expect(sendEmailMock).not.toHaveBeenCalled();
+    });
+
+    it("reports an unknown team", async () => {
+      getTeamDetailMock.mockResolvedValueOnce(null);
+
+      expect(await resendPassEmailAction("nope")).toEqual({ ok: false, message: "Team not found" });
+    });
+
+    it("reports how many emails failed", async () => {
+      getTeamDetailMock.mockResolvedValueOnce({ team: { name: "Alpha", shortlistStatus: "shortlisted" }, members });
+      sendEmailMock.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, error: "down" });
+
+      expect(await resendPassEmailAction("team-1")).toEqual({
+        ok: false,
+        message: "Could not send email to 1 of 2 member(s)",
+      });
     });
   });
 });

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { SubmissionItem } from "./episode-0-actions";
-import { submitReviewAction, updateShortlistAction } from "./episode-0-actions";
+import { resendPassEmailAction, submitReviewAction, updateShortlistAction } from "./episode-0-actions";
 
 export type Episode0TableProps = {
   initialSubmissions: SubmissionItem[];
@@ -124,6 +124,26 @@ export function Episode0Table({ initialSubmissions, target }: Episode0TableProps
           type: "error",
           text: err instanceof Error ? err.message : "Failed to update shortlist status",
         });
+      } finally {
+        setProcessingId(null);
+      }
+    });
+  };
+
+  const handleResendPassEmail = (teamId: string) => {
+    setStatusMessage(null);
+    setProcessingId(teamId);
+
+    startTransition(async () => {
+      try {
+        const res = await resendPassEmailAction(teamId);
+        setStatusMessage(
+          res.ok
+            ? { type: "success", text: "Pass email sent again to every member" }
+            : { type: "error", text: res.message },
+        );
+      } catch {
+        setStatusMessage({ type: "error", text: "Failed to resend the pass email" });
       } finally {
         setProcessingId(null);
       }
@@ -662,6 +682,26 @@ export function Episode0Table({ initialSubmissions, target }: Episode0TableProps
                               }}
                             >
                               Shortlist
+                            </button>
+                          )}
+
+                          {item.shortlistStatus === "shortlisted" && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendPassEmail(item.teamId)}
+                              disabled={isPending || isProcessingThis}
+                              style={{
+                                padding: "0.25rem 0.5rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                border: "1px solid var(--color-border, #d1d5db)",
+                                borderRadius: "0.25rem",
+                                background: "transparent",
+                                color: "var(--color-text-primary)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Resend pass email
                             </button>
                           )}
 

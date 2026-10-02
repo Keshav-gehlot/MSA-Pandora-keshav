@@ -68,6 +68,27 @@ export async function submitReviewAction(
   return { ok: true };
 }
 
+type EmailMember = { firstName: string; srmEmail: string };
+
+/** Sends the pass-ready email to every member and returns how many sends failed. */
+async function sendPassReadyEmails(teamName: string, teamMembers: EmailMember[]): Promise<number> {
+  const results = await Promise.allSettled(
+    teamMembers.map((member) =>
+      sendEmail({
+        to: member.srmEmail,
+        template: "checkin-pass-ready",
+        props: {
+          firstName: member.firstName,
+          teamName,
+          dashboardUrl: `${siteConfig.urls.web}/team`,
+        },
+      }),
+    ),
+  );
+  return results.filter((email) => email.status === "rejected" || (email.status === "fulfilled" && !email.value.ok))
+    .length;
+}
+
 const VALID_STATUSES = ["pending", "shortlisted", "not_shortlisted"] as const;
 
 export async function updateShortlistAction(
@@ -104,30 +125,17 @@ export async function updateShortlistAction(
         } else if (passes.issued > 0) {
           const detail = await getTeamDetail(db, teamId);
           if (!detail) {
-            warning = "Team shortlisted and passes issued, but member emails could not be prepared";
+            warning = "Team shortlisted and passes issued, but member emails could not be prepared. Use \"Resend pass email\" to retry";
           } else {
-            const emailResults = await Promise.allSettled(
-              detail.members.map((member) =>
-                sendEmail({
-                  to: member.srmEmail,
-                  template: "checkin-pass-ready",
-                  props: {
-                    firstName: member.firstName,
-                    teamName: detail.team.name,
-                    dashboardUrl: `${siteConfig.urls.web}/team`,
-                  },
-                }),
-              ),
-            );
-            const failedCount = emailResults.filter(
-              (email) => email.status === "rejected" || (email.status === "fulfilled" && !email.value.ok),
-            ).length;
+            const failedCount = await sendPassReadyEmails(detail.team.name, detail.members);
             if (failedCount > 0) {
-              warning = `Team shortlisted and passes issued, but could not send email to ${failedCount} of ${detail.members.length} member(s)`;
+              warning = `Team shortlisted and passes issued, but could not send email to ${failedCount} of ${detail.members.length} member(s). Use "Resend pass email" to retry`;
             }
           }
         }
-      } catch {
+      } catch (error) {
+        // Name only: the message could carry connection details or the pass secret.
+        console.error("Issuing event passes failed", error instanceof Error ? error.name : "unknown error");
         warning = "Team shortlisted, but event passes could not be issued; shortlist again to retry";
       }
     }
@@ -135,4 +143,26 @@ export async function updateShortlistAction(
 
   revalidatePath("/episode-0");
   return { ok: true, warning };
+}
+
+/** Emails the pass-ready message again to a shortlisted team, without issuing anything new. */
+export async function resendPassEmailAction(
+  teamId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireStaff("admin");
+  const db = await getDb();
+
+  const detail = await getTeamDetail(db, teamId);
+  if (!detail) {
+    return { ok: false, message: "Team not found" };
+  }
+  if (detail.team.shortlistStatus !== "shortlisted") {
+    return { ok: false, message: "Only shortlisted teams have event passes" };
+  }
+
+  const failedCount = await sendPassReadyEmails(detail.team.name, detail.members);
+  if (failedCount > 0) {
+    return { ok: false, message: `Could not send email to ${failedCount} of ${detail.members.length} member(s)` };
+  }
+  return { ok: true };
 }
