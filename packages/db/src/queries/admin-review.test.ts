@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "../client";
 import {
@@ -563,6 +563,25 @@ describe("admin notification queries", () => {
         }),
       ]),
     );
+  });
+
+  it("leaves no notice behind when the audit record fails", async () => {
+    // A trigger that rejects every audit insert stands in for any failure after the notice row is written.
+    await db.execute(sql`
+      create function reject_audit_insert() returns trigger as $$
+      begin raise exception 'audit insert rejected'; end;
+      $$ language plpgsql
+    `);
+    await db.execute(sql`
+      create trigger reject_audit before insert on admin_actions
+      for each row execute function reject_audit_insert()
+    `);
+
+    await expect(
+      createNotification(db, { staffId, teamId: null, title: "Doomed notice", body: "Should not persist." }),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(notifications)).toEqual([]);
   });
 
   it("lists sent notices newest first with their target team", async () => {
