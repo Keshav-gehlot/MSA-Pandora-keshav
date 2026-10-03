@@ -21,4 +21,5 @@ skips with a warning when it is missing. `getDb()` in each app's `src/lib/cf-db.
 page: at Hostinger each hostname needs a CNAME (`pandora`, `console.pandora`) and a `_vercel` TXT record for
 verification.
 
-**Read next.** https://vercel.com/docs/deployments/overview and https://vercel.com/docs/cli/deploy
+**Read next.** https://vercel.com/docs/deployments/overview and https://vercel.com/docs/cli/deploy. 
+Production deploys must come from a commit authored by the club account, because Vercel's free plan blocks other authors.
