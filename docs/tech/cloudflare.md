@@ -25,4 +25,8 @@ build against the real Workers runtime locally, for whenever that distinction ma
 misbehaves, `npx wrangler@latest rollback --name pandora-web` (or `pandora-console`) reverts to the previous
 version.
 
+**Custom domains are served from Vercel, not here.** `pandora.msasrm.in` and `console.pandora.msasrm.in` point at
+Vercel, because a Worker can only use a custom hostname when Cloudflare manages that domain's DNS, and `msasrm.in`
+stays at Hostinger. See `vercel.md`. The Workers here keep serving previews and the `workers.dev` production URLs.
+
 **Read next.** https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/

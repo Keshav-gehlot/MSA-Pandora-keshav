@@ -190,6 +190,72 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
           fi
 
+  # Production is also deployed to Vercel, because pandora.msasrm.in and console.pandora.msasrm.in are served from
+  # there: msasrm.in's DNS stays at Hostinger, where a plain CNAME to Vercel works but a CNAME to a Cloudflare Worker
+  # does not. The Cloudflare production Workers above keep running at their workers.dev addresses. This uses the
+  # Vercel CLI rather than Vercel's Git integration, so it does not depend on who authored the commit. It needs a
+  # VERCEL_TOKEN secret in the production-web and production-console environments. The runtime variables come from
+  # those same environments' secrets, exactly as the Cloudflare job's "Push secrets" step reads them.
+  deploy-vercel:
+    needs: [plan, migrate]
+    if: github.event_name != 'pull_request' && needs.plan.outputs.apps != '[]'
+    name: vercel (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.apps) }}
+    environment:
+      name: production-${{ matrix.app }}
+    env:
+      VERCEL_ORG_ID: team_IPLSqtv4753jNa6sU7ct26yn
+      VERCEL_PROJECT_ID: ${{ matrix.app == 'web' && 'prj_wuYzyzHqGggvhHksZpkAA13aoVqq' || 'prj_P2kch6A6uW4DDQQjDQau3QuytXbA' }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Check the Vercel token is set
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::VERCEL_TOKEN is not set in the production-${{ matrix.app }} environment; skipping the Vercel deploy."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/checkout@v4
+        if: env.SKIP != 'true'
+      - uses: pnpm/action-setup@v4
+        if: env.SKIP != 'true'
+      - uses: actions/setup-node@v4
+        if: env.SKIP != 'true'
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+        if: env.SKIP != 'true'
+      - name: Pull the Vercel project settings
+        if: env.SKIP != 'true'
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build
+        if: env.SKIP != 'true'
+        run: pnpm dlx vercel@latest build --prod --token "$VERCEL_TOKEN"
+      - name: Deploy
+        if: env.SKIP != 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          MAIL_TRANSPORT: ${{ secrets.MAIL_TRANSPORT }}
+          PASS_SECRET: ${{ secrets.PASS_SECRET }}
+          MAIL_ALLOWLIST: ${{ secrets.MAIL_ALLOWLIST }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          args=(-e DEPLOY_TARGET=production)
+          for key in DATABASE_URL RESEND_API_KEY EMAIL_FROM MAIL_TRANSPORT PASS_SECRET MAIL_ALLOWLIST SUPABASE_URL SUPABASE_SECRET_KEY; do
+            value="${!key:-}"
+            if [ -n "$value" ]; then
+              args+=(-e "$key=$value")
+            fi
+          done
+          url=$(pnpm dlx vercel@latest deploy --prebuilt --prod --token "$VERCEL_TOKEN" "${args[@]}")
+          echo "### ${{ matrix.app }} on Vercel: $url" >> "$GITHUB_STEP_SUMMARY"
+
   # Deletes a PR's preview Workers when the PR closes (merged or not), so closed PRs don't leave live Workers
   # (and their secrets) behind. Cloudflare has no automatic preview expiry the way Vercel did.
   pr-preview-cleanup:
