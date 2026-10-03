@@ -158,9 +158,16 @@ export async function checkTeamName(
     return { available: false };
   }
 
-  return {
-    available: await isTeamNameAvailable(await getDb(), parsedName.data),
-  };
+  try {
+    return {
+      available: await isTeamNameAvailable(await getDb(), parsedName.data),
+    };
+  } catch (error) {
+    // Name and code only: the message of a database error can carry connection details.
+    const code = (error as { code?: unknown } | null)?.code;
+    console.error("Team name check failed", typeof code === "string" ? code : error instanceof Error ? error.name : "unknown");
+    throw error;
+  }
 }
 
 export async function submitRegistration(

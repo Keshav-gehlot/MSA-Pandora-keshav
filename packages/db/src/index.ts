@@ -20,3 +20,4 @@ export * from "./queries/participant";
 export * from "./queries/admin";
 export * from "./queries/admin-review";
 export * from "./queries/checkin";
+export * from "./queries/health";

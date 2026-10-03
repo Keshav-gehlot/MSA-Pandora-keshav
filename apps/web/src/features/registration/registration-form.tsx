@@ -552,7 +552,9 @@ if (index === 0 && field === "srmEmail") {
       return;
     }
 
-    if (teamNameAvailable !== true) {
+    // Only a definite "taken" blocks here. If the availability check couldn't run (null: still checking, or the
+    // lookup failed), the final submit checks the name again and reports a clash, so the visitor isn't stuck.
+    if (teamNameAvailable === false) {
       setFieldError(
         "teamName",
         "Please choose an available team name.",
