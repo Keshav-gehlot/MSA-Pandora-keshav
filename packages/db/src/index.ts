@@ -13,7 +13,7 @@ export {
   verifyOtp,
   type OtpPurpose,
 } from "./queries/auth";
-export { getStorage, diskStorage, STORAGE_BUCKET, supabaseStorage, type Storage } from "./storage";
+export { diskStorage, fileUrl, r2Storage, type R2BucketLike, type Storage, type StoredFile } from "./storage";
 // One file per flow, so flow owners don't edit the same file.
 export * from "./queries/registration";
 export * from "./queries/participant";

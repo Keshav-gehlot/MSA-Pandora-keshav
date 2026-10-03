@@ -9,15 +9,11 @@ vi.mock("next/cache", () => ({
 // Mock @pandora/db
 const decidePaymentMock = vi.fn();
 const listPendingPaymentsMock = vi.fn();
-const signedUrlMock = vi.fn();
-const getStorageMock = vi.fn(() => ({
-  signedUrl: (...args: unknown[]) => signedUrlMock(...args),
-}));
 
 vi.mock("@pandora/db", () => ({
   decidePayment: (...args: unknown[]) => decidePaymentMock(...args),
   listPendingPayments: (...args: unknown[]) => listPendingPaymentsMock(...args),
-  getStorage: () => getStorageMock(),
+  fileUrl: (path: string) => `/files/${path}`,
 }));
 
 // Mock cf-db
@@ -47,7 +43,7 @@ describe("payment-actions", () => {
   });
 
   describe("fetchPendingPayments", () => {
-    it("fetches pending payments and generates signed URLs", async () => {
+    it("fetches pending payments with a console link to each proof", async () => {
       const createdAt = new Date("2026-09-29T10:00:00Z");
       listPendingPaymentsMock.mockResolvedValueOnce([
         {
@@ -58,8 +54,6 @@ describe("payment-actions", () => {
           createdAt,
         },
       ]);
-      signedUrlMock.mockResolvedValueOnce("https://storage.example.com/signed/alpha.png");
-
       const items = await fetchPendingPayments();
       expect(requireStaffMock).toHaveBeenCalledWith("admin");
       expect(items).toEqual([
@@ -68,28 +62,12 @@ describe("payment-actions", () => {
           teamId: "team-1",
           teamName: "Alpha",
           filePath: "proofs/alpha.png",
-          signedUrl: "https://storage.example.com/signed/alpha.png",
+          fileUrl: "/files/proofs/alpha.png",
           createdAt,
         },
       ]);
-      expect(signedUrlMock).toHaveBeenCalledWith("proofs/alpha.png", 300);
     });
 
-    it("handles storage signing errors gracefully", async () => {
-      listPendingPaymentsMock.mockResolvedValueOnce([
-        {
-          proofId: "proof-1",
-          teamId: "team-1",
-          teamName: "Alpha",
-          filePath: "proofs/alpha.png",
-          createdAt: new Date(),
-        },
-      ]);
-      signedUrlMock.mockRejectedValueOnce(new Error("Storage unavailable"));
-
-      const items = await fetchPendingPayments();
-      expect(items[0]?.signedUrl).toBeNull();
-    });
   });
 
   describe("reviewPayment", () => {

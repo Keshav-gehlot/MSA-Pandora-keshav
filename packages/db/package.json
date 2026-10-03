@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@pandora/core": "workspace:*",
-    "@supabase/supabase-js": "^2.117.0",
     "drizzle-orm": "^0.45.0",
     "pg": "^8.23.0",
     "pg-cloudflare": "^1.4.0"

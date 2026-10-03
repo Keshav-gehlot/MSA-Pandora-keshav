@@ -1,7 +1,7 @@
 "use server";
 
 import { decisionNoteSchema } from "@pandora/core";
-import { decidePayment, getStorage, listPendingPayments } from "@pandora/db";
+import { decidePayment, fileUrl, listPendingPayments } from "@pandora/db";
 import { sendEmail } from "@pandora/email";
 import { revalidatePath } from "next/cache";
 import { getDb } from "../../../lib/cf-db";
@@ -12,7 +12,7 @@ export type PendingPaymentItem = {
   teamId: string;
   teamName: string;
   filePath: string;
-  signedUrl: string | null;
+  fileUrl: string;
   createdAt: Date;
 };
 
@@ -20,22 +20,8 @@ export async function fetchPendingPayments(): Promise<PendingPaymentItem[]> {
   await requireStaff("admin");
   const db = await getDb();
   const rows = await listPendingPayments(db);
-  const storage = getStorage();
 
-  return await Promise.all(
-    rows.map(async (row) => {
-      let signedUrl: string | null = null;
-      try {
-        signedUrl = await storage.signedUrl(row.filePath, 300);
-      } catch {
-        signedUrl = null;
-      }
-      return {
-        ...row,
-        signedUrl,
-      };
-    }),
-  );
+  return rows.map((row) => ({ ...row, fileUrl: fileUrl(row.filePath) }));
 }
 
 export async function reviewPayment(

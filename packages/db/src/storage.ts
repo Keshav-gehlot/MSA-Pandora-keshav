@@ -1,19 +1,42 @@
-import { createClient } from "@supabase/supabase-js";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
 
-export const STORAGE_BUCKET = "pandora-uploads";
+export type StoredFile = { body: BodyInit; contentType: string };
 
 export type Storage = {
   putFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
-  signedUrl(path: string, expiresInSeconds?: number): Promise<string>;
+  /** The stored file, or null when nothing is stored at `path`. */
+  getFile(path: string): Promise<StoredFile | null>;
 };
 
-// Local development: files on disk. signedUrl returns a file:// URL, which is enough to check an upload happened.
+// Files are never given out by direct link: the console serves them from this route, behind staff sign-in
+// (apps/console/src/app/files). Only the console reads files; the public site only writes them.
+export function fileUrl(path: string): string {
+  return `/files/${path.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+// Keys are generated server-side (teams/<id>/photos/1.png), but are checked anyway so a bad one can never escape
+// the bucket or the storage folder.
+function checkPath(path: string): void {
+  const parts = path.split("/");
+  if (path === "" || path.startsWith("/") || parts.some((part) => part === "" || part === "." || part === "..")) {
+    throw new Error("Invalid storage path");
+  }
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf",
+};
+
+// Local development: files on disk.
 export function diskStorage(rootDir: string): Storage {
   const root = resolve(rootDir);
   const safe = (path: string) => {
+    checkPath(path);
     const full = resolve(root, path);
     const rel = relative(root, full);
     if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) throw new Error("Invalid storage path");
@@ -25,39 +48,37 @@ export function diskStorage(rootDir: string): Storage {
       mkdirSync(dirname(full), { recursive: true });
       writeFileSync(full, data);
     },
-    async signedUrl(path) {
-      return pathToFileURL(safe(path)).href;
+    async getFile(path) {
+      const full = safe(path);
+      try {
+        const bytes = readFileSync(full);
+        return { body: new Uint8Array(bytes), contentType: CONTENT_TYPES[extname(full).toLowerCase()] ?? "application/octet-stream" };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw error;
+      }
     },
   };
 }
 
-export function supabaseStorage({ url, secretKey, bucket = STORAGE_BUCKET }: { url: string; secretKey: string; bucket?: string }): Storage {
-  const client = createClient(url, secretKey, { auth: { persistSession: false } });
+// The slice of a Cloudflare R2 bucket binding that this file uses, so this package doesn't depend on the Workers types.
+export type R2BucketLike = {
+  put(key: string, value: Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  get(key: string): Promise<{ body: ReadableStream; httpMetadata?: { contentType?: string } } | null>;
+};
+
+// Deployed: a Cloudflare R2 bucket, attached to the Worker as a binding (wrangler.jsonc "r2_buckets").
+export function r2Storage(bucket: R2BucketLike): Storage {
   return {
     async putFile(path, data, contentType) {
-      const { error } = await client.storage.from(bucket).upload(path, data, { contentType, upsert: false });
-      if (error) throw new Error(error.message);
+      checkPath(path);
+      await bucket.put(path, data, { httpMetadata: { contentType } });
     },
-    async signedUrl(path, expiresInSeconds = 300) {
-      const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
-      if (error || !data) throw new Error(error?.message ?? "Could not sign URL");
-      return data.signedUrl;
+    async getFile(path) {
+      checkPath(path);
+      const object = await bucket.get(path);
+      if (!object) return null;
+      return { body: object.body, contentType: object.httpMetadata?.contentType ?? "application/octet-stream" };
     },
   };
-}
-
-let cached: Storage | undefined;
-export function getStorage(): Storage {
-  if (cached) return cached;
-  const { SUPABASE_URL: url, SUPABASE_SECRET_KEY: secretKey, DEPLOY_TARGET } = process.env;
-  if (url && secretKey) {
-    cached = supabaseStorage({ url, secretKey });
-  } else if (DEPLOY_TARGET) {
-    // A deployed instance's disk is temporary and per-instance (or, on Workers, virtual): uploads written there
-    // would be lost.
-    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set when deployed (DEPLOY_TARGET is set)");
-  } else {
-    cached = diskStorage(".storage");
-  }
-  return cached;
 }

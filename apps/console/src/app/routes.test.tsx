@@ -211,7 +211,7 @@ describe("PaymentsPage (/payments) routing", () => {
         teamId: "team-1",
         teamName: "Super Team",
         filePath: "proofs/super.png",
-        signedUrl: "https://storage.example.com/super.png",
+        fileUrl: "/files/proofs/super.png",
         createdAt: new Date("2026-09-29T10:00:00Z"),
       },
     ]);

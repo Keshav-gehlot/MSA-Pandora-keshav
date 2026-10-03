@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getStorage, getTeamDetail } from "@pandora/db";
+import { fileUrl, getTeamDetail } from "@pandora/db";
 import { pageTitle } from "@pandora/core";
 import { notFound } from "next/navigation";
 import { ConsoleShell } from "../../../features/admin/shell/console-shell";
@@ -15,9 +15,8 @@ export default async function TeamDetailPage({ params }: Props) {
   const admin = await requireStaff("admin");
   const detail = await getTeamDetail(await getDb(), (await params).teamId);
   if (!detail) notFound();
-  const storage = getStorage();
-  const photos = new Map(await Promise.all(detail.members.map(async (member) => [member.id, member.photoPath ? await storage.signedUrl(member.photoPath) : null] as const)));
-  const proofs = new Map(await Promise.all(detail.paymentProofs.map(async (proof) => [proof.id, await storage.signedUrl(proof.filePath)] as const)));
+  const photos = new Map(detail.members.map((member) => [member.id, member.photoPath ? fileUrl(member.photoPath) : null] as const));
+  const proofs = new Map(detail.paymentProofs.map((proof) => [proof.id, fileUrl(proof.filePath)] as const));
   return <ConsoleShell staff={admin}><div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
     <div><Link href="/teams">Back to teams</Link><h1 style={{ margin: ".5rem 0 0", fontSize: "1.5rem" }}>{detail.team.name}</h1><p style={{ margin: ".25rem 0 0", color: "var(--color-text-secondary)" }}>{detail.team.track} · Payment: {detail.team.paymentStatus.replaceAll("_", " ")} · Shortlist: {detail.team.shortlistStatus.replaceAll("_", " ")}</p></div>
     <section style={box}><h2 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>Members</h2><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: ".75rem" }}>{detail.members.map((member) => <article key={member.id} style={{ border: "1px solid var(--color-border, #e5e5e5)", borderRadius: ".375rem", padding: ".75rem" }}><strong>{member.firstName} {member.lastName}{member.isLeader ? " (Leader)" : ""}</strong><p style={{ margin: ".5rem 0 0", fontSize: ".875rem" }}>{member.regNumber}<br />{member.srmEmail}<br />{member.personalEmail}<br />{member.phone}</p>{photos.get(member.id) ? <a href={photos.get(member.id)!} target="_blank" rel="noreferrer">View photo</a> : <span>No photo</span>}</article>)}</div></section>

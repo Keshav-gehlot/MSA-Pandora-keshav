@@ -215,10 +215,10 @@ export function PaymentReviewQueue({ initialItems }: PaymentReviewQueueProps) {
                   <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-secondary)" }}>
                     Payment Screenshot
                   </span>
-                  {item.signedUrl ? (
+                  {item.fileUrl ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-start" }}>
                       <a
-                        href={item.signedUrl}
+                        href={item.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
@@ -233,7 +233,7 @@ export function PaymentReviewQueue({ initialItems }: PaymentReviewQueueProps) {
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={item.signedUrl}
+                          src={item.fileUrl}
                           alt={`Payment screenshot for ${item.teamName}`}
                           style={{
                             width: "100%",
@@ -244,7 +244,7 @@ export function PaymentReviewQueue({ initialItems }: PaymentReviewQueueProps) {
                         />
                       </a>
                       <a
-                        href={item.signedUrl}
+                        href={item.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

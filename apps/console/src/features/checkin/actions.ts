@@ -1,7 +1,7 @@
 "use server";
 
 import { parsePassPayload } from "@pandora/core";
-import { attendanceSummary, checkIn, getStorage, lookupPass, searchCheckin } from "@pandora/db";
+import { attendanceSummary, checkIn, fileUrl, lookupPass, searchCheckin } from "@pandora/db";
 import { getDb } from "../../lib/cf-db";
 import { requireStaff } from "../../lib/session";
 
@@ -63,15 +63,7 @@ export async function lookupScan(payload: string): Promise<LookupScanResult> {
     return { ok: false, error: "This pass was cancelled." };
   }
 
-  let photoUrl: string | null = null;
-  if (pass.photoPath) {
-    try {
-      const storage = getStorage();
-      photoUrl = await storage.signedUrl(pass.photoPath);
-    } catch {
-      photoUrl = null;
-    }
-  }
+  const photoUrl = pass.photoPath ? fileUrl(pass.photoPath) : null;
 
   return {
     ok: true,

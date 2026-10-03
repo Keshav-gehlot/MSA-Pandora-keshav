@@ -30,3 +30,5 @@ Vercel, because a Worker can only use a custom hostname when Cloudflare manages 
 stays at Hostinger. See `vercel.md`. The Workers here keep serving previews and the `workers.dev` production URLs.
 
 **Read next.** https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/
+
+File uploads live in Cloudflare R2, bound to each Worker as `UPLOADS`: see `docs/tech/r2.md`.

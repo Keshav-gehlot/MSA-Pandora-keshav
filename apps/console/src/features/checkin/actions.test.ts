@@ -5,8 +5,6 @@ const mockCheckIn = vi.fn();
 const mockSearchCheckin = vi.fn();
 const mockAttendanceSummary = vi.fn();
 const mockGetDb = vi.fn();
-const mockSignedUrl = vi.fn();
-const mockGetStorage = vi.fn();
 const mockRequireStaff = vi.fn();
 
 vi.mock("@pandora/db", () => ({
@@ -14,7 +12,7 @@ vi.mock("@pandora/db", () => ({
   checkIn: (...args: unknown[]) => mockCheckIn(...args),
   searchCheckin: (...args: unknown[]) => mockSearchCheckin(...args),
   attendanceSummary: (...args: unknown[]) => mockAttendanceSummary(...args),
-  getStorage: () => mockGetStorage(),
+  fileUrl: (path: string) => `/files/${path}`,
 }));
 
 vi.mock("../../lib/cf-db", () => ({
@@ -34,9 +32,6 @@ describe("check-in server actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDb.mockReturnValue({ name: "mock-db" });
-    mockGetStorage.mockReturnValue({
-      signedUrl: mockSignedUrl,
-    });
     mockRequireStaff.mockResolvedValue({
       id: "staff-123",
       name: "Gate One",
@@ -127,10 +122,9 @@ describe("check-in server actions", () => {
           checkedIn: null,
         },
       });
-      expect(mockSignedUrl).not.toHaveBeenCalled();
     });
 
-    it("generates signed photo URL when photoPath exists", async () => {
+    it("links the photo through the console when photoPath exists", async () => {
       mockLookupPass.mockResolvedValue({
         memberId: "m-2",
         memberName: "Bob Jones",
@@ -141,37 +135,6 @@ describe("check-in server actions", () => {
         revoked: false,
         checkedIn: null,
       });
-      mockSignedUrl.mockResolvedValue("https://storage.example.com/signed/photo.jpg");
-
-      const result = await lookupScan(dummyPayload);
-      expect(mockSignedUrl).toHaveBeenCalledWith("photos/m-2.jpg");
-      expect(result).toEqual({
-        ok: true,
-        data: {
-          memberId: "m-2",
-          memberName: "Bob Jones",
-          regNumber: "RA2411003010002",
-          photoUrl: "https://storage.example.com/signed/photo.jpg",
-          teamName: "Team Beta",
-          track: "AI",
-          checkedIn: null,
-        },
-      });
-    });
-
-    it("gracefully falls back to null photoUrl if storage fails", async () => {
-      mockLookupPass.mockResolvedValue({
-        memberId: "m-2",
-        memberName: "Bob Jones",
-        regNumber: "RA2411003010002",
-        photoPath: "photos/m-2.jpg",
-        teamName: "Team Beta",
-        track: "AI",
-        revoked: false,
-        checkedIn: null,
-      });
-      mockSignedUrl.mockRejectedValue(new Error("Storage unavailable"));
-
       const result = await lookupScan(dummyPayload);
       expect(result).toEqual({
         ok: true,
@@ -179,7 +142,7 @@ describe("check-in server actions", () => {
           memberId: "m-2",
           memberName: "Bob Jones",
           regNumber: "RA2411003010002",
-          photoUrl: null,
+          photoUrl: "/files/photos/m-2.jpg",
           teamName: "Team Beta",
           track: "AI",
           checkedIn: null,

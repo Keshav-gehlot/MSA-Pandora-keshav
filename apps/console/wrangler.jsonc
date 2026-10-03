@@ -14,11 +14,13 @@
   "env": {
     "preview": {
       "vars": { "DEPLOY_TARGET": "preview" },
-      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "de985b0cdd7743cc872d72a4295cb95f" }]
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "de985b0cdd7743cc872d72a4295cb95f" }],
+      "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "pandora-uploads-preview" }]
     },
     "production": {
       "vars": { "DEPLOY_TARGET": "production" },
-      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d272bea02ce4492b28f06766c7a6b89" }]
+      "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "4d272bea02ce4492b28f06766c7a6b89" }],
+      "r2_buckets": [{ "binding": "UPLOADS", "bucket_name": "pandora-uploads" }]
     }
   }
 }

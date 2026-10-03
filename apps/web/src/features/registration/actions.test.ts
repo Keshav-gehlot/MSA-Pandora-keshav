@@ -6,13 +6,13 @@ const mockSendEmail = vi.fn();
 
 vi.mock("@pandora/db", () => ({
   findMemberByEmail: vi.fn(),
-  getStorage: () => mockGetStorage(),
   isTeamNameAvailable: vi.fn(),
   issueOtp: vi.fn(),
   registerTeam: (...args: unknown[]) => mockRegisterTeam(...args),
   verifyOtp: vi.fn(),
 }));
 vi.mock("@pandora/email", () => ({ sendEmail: (...args: unknown[]) => mockSendEmail(...args) }));
+vi.mock("../../lib/cf-storage", () => ({ getStorage: async () => mockGetStorage() }));
 vi.mock("../../lib/cf-db", () => ({ getDb: async () => ({ fake: "db" }) }));
 
 import { submitRegistration } from "./actions";
@@ -37,9 +37,9 @@ function form(files: Record<string, File> = {}): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // A deployed preview without storage credentials.
+  // A deployed Worker with no bucket binding.
   mockGetStorage.mockImplementation(() => {
-    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY must be set when deployed");
+    throw new Error("No UPLOADS (R2) binding is available");
   });
   mockRegisterTeam.mockResolvedValue({ ok: true });
   mockSendEmail.mockResolvedValue({ ok: true, id: "x" });

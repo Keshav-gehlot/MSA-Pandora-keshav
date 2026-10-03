@@ -72,8 +72,10 @@ Schema files are split one table per file under `packages/db/src/schema/`, and q
 under `packages/db/src/queries/` (`registration.ts`, `participant.ts`, `admin.ts`, `checkin.ts`), so flow owners
 rarely edit the same file. A schema change always ships with its generated migration in the same pull request.
 
-File storage (photos, payment proofs) is a Supabase Storage **private** bucket, wrapped by `packages/db/src/storage.ts`
-(`putFile`, `signedUrl`). Files are only ever shown through short-lived signed URLs.
+File storage (photos, payment proofs) is a **private Cloudflare R2 bucket** bound to each Worker as `UPLOADS`,
+wrapped by `packages/db/src/storage.ts` (`putFile`, `getFile`; local development writes to `.storage/` instead).
+The public site only writes files. The console serves them from `/files/...` behind staff sign-in (payment proofs:
+admin only), so there are no public or signed links to a file. (Amended 2026-10-02: this replaced Supabase Storage.)
 
 ### 3.2 Environments and data safety
 

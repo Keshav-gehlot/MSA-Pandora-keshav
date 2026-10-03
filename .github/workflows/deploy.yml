@@ -157,11 +157,9 @@ jobs:
           MAIL_TRANSPORT: ${{ secrets.MAIL_TRANSPORT }}
           PASS_SECRET: ${{ secrets.PASS_SECRET }}
           MAIL_ALLOWLIST: ${{ secrets.MAIL_ALLOWLIST }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           json="{}"
-          for key in DATABASE_MIGRATE_URL RESEND_API_KEY EMAIL_FROM MAIL_TRANSPORT PASS_SECRET MAIL_ALLOWLIST SUPABASE_URL SUPABASE_SECRET_KEY; do
+          for key in DATABASE_MIGRATE_URL RESEND_API_KEY EMAIL_FROM MAIL_TRANSPORT PASS_SECRET MAIL_ALLOWLIST; do
             value="${!key:-}"
             if [ -n "$value" ]; then
               json=$(node -e "const o=$json; o[process.argv[1]]=process.argv[2]; console.log(JSON.stringify(o))" "$key" "$value")

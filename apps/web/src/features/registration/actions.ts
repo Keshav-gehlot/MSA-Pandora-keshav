@@ -11,7 +11,6 @@ import {
 } from "@pandora/core";
 import {
   findMemberByEmail,
-  getStorage,
   isTeamNameAvailable,
   issueOtp,
   registerTeam,
@@ -19,6 +18,7 @@ import {
 } from "@pandora/db";
 import { sendEmail } from "@pandora/email";
 import { getDb } from "../../lib/cf-db";
+import { getStorage } from "../../lib/cf-storage";
 
 type Result = { ok: true } | { ok: false; message: string };
 
@@ -225,8 +225,7 @@ export async function submitRegistration(
   }
 
   const teamId = crypto.randomUUID();
-  // getStorage() is called only when there is a file to store: a deployed Worker without storage credentials (a
-  // preview) must still be able to register a team that uploads nothing.
+  // getStorage() is called only where a file is stored, so a team that uploads nothing never needs a bucket.
   const photoPaths: Array<string | null> = [];
 
   for (let index = 0; index < registration.members.length; index += 1) {
@@ -252,7 +251,8 @@ export async function submitRegistration(
     const extension = uploadExtension(file.type);
     const path = `teams/${teamId}/photos/${index + 1}.${extension}`;
 
-    await getStorage().putFile(
+    const storage = await getStorage();
+    await storage.putFile(
       path,
       new Uint8Array(await file.arrayBuffer()),
       file.type,
@@ -279,7 +279,8 @@ export async function submitRegistration(
     const extension = uploadExtension(paymentProof.type);
     paymentProofPath = `teams/${teamId}/payment/${crypto.randomUUID()}.${extension}`;
 
-    await getStorage().putFile(
+    const storage = await getStorage();
+    await storage.putFile(
       paymentProofPath,
       new Uint8Array(await paymentProof.arrayBuffer()),
       paymentProof.type,
