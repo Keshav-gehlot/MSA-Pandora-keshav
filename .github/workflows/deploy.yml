@@ -234,6 +234,8 @@ jobs:
         run: pnpm dlx vercel@latest build --prod --token "$VERCEL_TOKEN"
       - name: Deploy
         if: env.SKIP != 'true'
+        # A blocked or stuck Vercel build otherwise waits out the whole job timeout; a healthy deploy takes ~1 minute.
+        timeout-minutes: 8
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}

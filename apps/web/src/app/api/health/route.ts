@@ -16,15 +16,29 @@ const SETTINGS = [
   "DEPLOY_TARGET",
 ] as const;
 
+// A connection error's message normally names the failure (timeout, refused, auth), but strip anything shaped like
+// a connection URL or credentials, and cap the length, so this endpoint can never echo a secret.
+function scrub(message: string): string {
+  return message
+    .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, "<url>")
+    .replace(/password[^,;]*/gi, "password <hidden>")
+    .slice(0, 160);
+}
+
 export async function GET() {
   const settings = Object.fromEntries(SETTINGS.map((name) => [name, Boolean(process.env[name])]));
-  let database: { ok: true } | { ok: false; error: string };
+  let database: { ok: true } | { ok: false; error: string; code?: string; message?: string };
   try {
     await pingDatabase(await getDb());
     database = { ok: true };
   } catch (error) {
     const code = (error as { code?: unknown } | null)?.code;
-    database = { ok: false, error: typeof code === "string" ? code : error instanceof Error ? error.name : "unknown" };
+    database = {
+      ok: false,
+      error: error instanceof Error ? error.name : "unknown",
+      code: typeof code === "string" ? code : undefined,
+      message: error instanceof Error ? scrub(error.message) : undefined,
+    };
   }
   return Response.json({ database, settings }, { status: database.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
 }
