@@ -22,4 +22,4 @@ page: at Hostinger each hostname needs a CNAME (`pandora`, `console.pandora`) an
 verification.
 
 **Read next.** https://vercel.com/docs/deployments/overview and https://vercel.com/docs/cli/deploy. 
-Production deploys must come from a commit authored by the club account, because Vercel's free plan blocks other authors.
+Production deploys must come from a commit authored by the club account, because Vercel's free plan blocks other authors. Never Stop Innovating
