@@ -12,60 +12,134 @@ const COLOR_CLASS = {
   gold: styles.gold,
 } as const;
 
+const STAGE_COLOR = {
+  violet: "var(--pandora-violet)",
+  sky: "var(--pandora-sky)",
+  rose: "var(--pandora-rose)",
+  gold: "var(--pandora-gold)",
+} as const;
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
 /**
- * "Let's see the Timeline": milestones along a line. On a wide screen with motion allowed the section pins and
- * scrolling the page slides the line sideways while each node lights up; otherwise (phones, reduced motion, no
- * scripts) it is an ordinary horizontally scrollable row that snaps to each milestone.
+ * "Let's see the Timeline". On a wide screen with motion allowed the scene pins and scrolling slides the track
+ * sideways. Which milestone is lit is decided by where each card actually is on screen (a ScrollTrigger per card
+ * that follows the sideways movement), so a card lights exactly as it arrives. On phones, narrow windows and with
+ * reduced motion it is a vertical timeline down the page, and each stop lights as you reach it.
  */
 export function Timeline() {
   const root = useRef<HTMLElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
-  const track = useRef<HTMLOListElement>(null);
+  const track = useRef<HTMLDivElement>(null);
+  const fill = useRef<HTMLDivElement>(null);
+  const counter = useRef<HTMLSpanElement>(null);
 
   useGSAP(
     () => {
+      const section = root.current;
+      const trackEl = track.current;
+      const viewportEl = viewport.current;
+      const fillEl = fill.current;
+      if (!section || !trackEl || !viewportEl || !fillEl) return;
+
+      const items = gsap.utils.toArray<HTMLElement>("[data-milestone]", trackEl);
+
+      // Lights milestone `active` and everything before it as done; moves the colour and the counter with it.
+      const setActive = (active: number, horizontal: boolean) => {
+        items.forEach((item, index) => {
+          item.dataset.state = index < active ? "done" : index === active ? "active" : "idle";
+        });
+        const color = TIMELINE[active]?.color ?? "violet";
+        section.style.setProperty("--stage", STAGE_COLOR[color]);
+        if (counter.current) counter.current.textContent = pad(active + 1);
+        const node = items[active]?.querySelector<HTMLElement>("[data-node]");
+        if (!node) return;
+        const nodeBox = node.getBoundingClientRect();
+        const trackBox = trackEl.getBoundingClientRect();
+        const length = horizontal ? fillEl.offsetWidth : fillEl.offsetHeight;
+        const position = horizontal
+          ? nodeBox.left + nodeBox.width / 2 - fillEl.getBoundingClientRect().left
+          : nodeBox.top + nodeBox.height / 2 - trackBox.top;
+        gsap.to(fillEl, {
+          [horizontal ? "scaleX" : "scaleY"]: Math.min(1, Math.max(0, position / length)),
+          duration: 0.7,
+          ease: "power2.out",
+          overwrite: "auto",
+        });
+      };
+
       const mm = gsap.matchMedia();
+
+      // Wide screen, motion allowed: pinned, sideways.
       mm.add("(min-width: 900px) and (prefers-reduced-motion: no-preference)", () => {
-        const trackEl = track.current;
-        const viewportEl = viewport.current;
-        if (!trackEl || !viewportEl) return;
-        const nodes = gsap.utils.toArray<HTMLElement>("[data-node]", trackEl);
-        const cards = gsap.utils.toArray<HTMLElement>("[data-milestone]", trackEl);
         const distance = () => Math.max(0, trackEl.scrollWidth - viewportEl.clientWidth);
-        const section = root.current;
-        section?.setAttribute("data-pinned", "true");
+        gsap.set(items, { clearProps: "opacity" });
+        setActive(0, true);
 
-        // Milestones start dimmed and light up as the line reaches them.
-        gsap.set(cards, { opacity: 0.35 });
-        gsap.set(nodes, { scale: 0.7 });
-
-        const slide = gsap.timeline({
-          defaults: { ease: "none" },
+        const slide = gsap.to(trackEl, {
+          x: () => -distance(),
+          ease: "none",
           scrollTrigger: {
-            trigger: root.current,
+            trigger: section,
             start: "top top",
-            end: () => `+=${distance()}`,
+            end: () => `+=${distance() + window.innerHeight * 0.35}`,
             pin: true,
-            scrub: 0.6,
+            scrub: 0.8,
             anticipatePin: 1,
             invalidateOnRefresh: true,
           },
         });
-        slide.to(trackEl, { x: () => -distance() }, 0);
 
-        cards.forEach((card, index) => {
-          const node = nodes[index];
-          // Each milestone lights up when its left edge has travelled into the right 80% of the viewport.
-          const at = (index / Math.max(1, cards.length - 1)) * 0.85;
-          slide.to(card, { opacity: 1, duration: 0.08, ease: "power1.out" }, at);
-          if (node) slide.to(node, { scale: 1.15, duration: 0.08, ease: "back.out(2)" }, at);
-        });
+        const triggers = items.map((item, index) =>
+          ScrollTrigger.create({
+            trigger: item,
+            containerAnimation: slide,
+            start: "left 66%",
+            end: "left 20%",
+            onEnter: () => setActive(index, true),
+            onEnterBack: () => setActive(index, true),
+            onLeaveBack: () => setActive(Math.max(0, index - 1), true),
+          }),
+        );
 
         return () => {
-          section?.removeAttribute("data-pinned");
-          gsap.set([trackEl, ...cards, ...nodes], { clearProps: "all" });
+          triggers.forEach((trigger) => trigger.kill());
+          gsap.set([trackEl, fillEl], { clearProps: "transform" });
         };
       });
+
+      // Phones, narrow windows and reduced motion: vertical.
+      mm.add("(max-width: 899px), (prefers-reduced-motion: reduce)", () => {
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (reducedMotion) {
+          // Everything stays fully visible; just show the whole line filled and no stop highlighted.
+          items.forEach((item) => (item.dataset.state = "done"));
+          gsap.set(fillEl, { scaleY: 1 });
+          if (counter.current) counter.current.textContent = pad(items.length);
+          return;
+        }
+
+        setActive(0, false);
+        const triggers = items.map((item, index) =>
+          ScrollTrigger.create({
+            trigger: item,
+            start: "top 62%",
+            end: "bottom 38%",
+            onEnter: () => setActive(index, false),
+            onEnterBack: () => setActive(index, false),
+          }),
+        );
+        gsap.from(items, {
+          opacity: 0,
+          x: -24,
+          duration: 0.7,
+          stagger: 0.08,
+          ease: "power3.out",
+          scrollTrigger: { trigger: trackEl, start: "top 80%", once: true },
+        });
+        return () => triggers.forEach((trigger) => trigger.kill());
+      });
+
       ScrollTrigger.refresh();
       return () => mm.revert();
     },
@@ -73,21 +147,40 @@ export function Timeline() {
   );
 
   return (
-    <section id="timeline" ref={root} className={styles.timeline} aria-labelledby="timeline-title">
+    <section id="timeline" ref={root} className={`${styles.scene} ${styles.timeline}`} aria-labelledby="timeline-title">
+      <div className={styles.timelineGhost} aria-hidden="true">
+        {pad(TIMELINE.length)}
+      </div>
       <div className={styles.timelineInner}>
-        <h2 id="timeline-title" className={styles.timelineTitle}>
-          Let&rsquo;s see the Timeline
-        </h2>
-        <div ref={viewport} className={styles.timelineViewport} role="region" aria-label="Timeline" tabIndex={0}>
-          <ol ref={track} className={styles.timelineTrack}>
+        <div className={styles.timelineHead}>
+          <h2 id="timeline-title" className={styles.timelineTitle}>
+            Let&rsquo;s see the Timeline
+          </h2>
+          <p className={styles.timelineCount} aria-hidden="true">
+            <span ref={counter} className={styles.timelineCountNow}>
+              01
+            </span>{" "}
+            / {pad(TIMELINE.length)}
+          </p>
+        </div>
+        <div ref={viewport} className={styles.timelineViewport}>
+          <div ref={track} className={styles.timelineTrack}>
+            <div className={styles.timelineLine} aria-hidden="true" />
+            <div ref={fill} className={styles.timelineFill} aria-hidden="true" />
+            <ol className={styles.timelineList}>
             {TIMELINE.map((milestone, index) => (
               <li
                 key={milestone.title}
+                data-milestone
+                data-state="idle"
                 className={`${styles.milestone} ${COLOR_CLASS[milestone.color]} ${
                   index % 2 === 0 ? styles.milestoneAbove : styles.milestoneBelow
                 }`}
               >
-                <div className={styles.milestoneCard} data-milestone>
+                <div className={styles.milestoneCard}>
+                  <span className={styles.milestoneIndex} aria-hidden="true">
+                    {pad(index + 1)}
+                  </span>
                   <p className={styles.milestoneDate}>{milestone.date}</p>
                   <h3 className={styles.milestoneTitle}>{milestone.title}</h3>
                   <p className={styles.milestoneText}>{milestone.text}</p>
@@ -95,7 +188,8 @@ export function Timeline() {
                 <span className={styles.milestoneNode} data-node aria-hidden="true" />
               </li>
             ))}
-          </ol>
+            </ol>
+          </div>
         </div>
       </div>
     </section>

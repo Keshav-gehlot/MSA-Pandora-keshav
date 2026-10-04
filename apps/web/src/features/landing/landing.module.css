@@ -1,16 +1,77 @@
-/* Layout for the public landing page. Colours come from the --pandora-* tokens in @pandora/ui. Numbers are the
-   Figma desktop sizes (1512px frame); clamp() scales them down for phones. */
+/* Layout for the public landing page. Colours come from the --pandora-* tokens in @pandora/ui. Every section is a
+   full-screen "scene" (100svh): it fills the visible screen on any device, with the content centred in it. */
 
+.page {
+  --nav-h: 96px;
+  background: var(--pandora-paper);
+  color-scheme: light;
+  /* BT Beau Sans, the design's typeface, for this page only; Astryx components pick it up through these tokens. */
+  --font-family-body: var(--pandora-font-sans), Figtree, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-heading: var(--font-family-body);
+  font-family: var(--font-family-body);
+  /* The design's accent is ink, not the app-wide blue: Astryx primary buttons and steppers follow it. */
+  --color-accent: var(--pandora-ink);
+  --color-on-accent: var(--pandora-paper);
+}
+@media (max-width: 860px) {
+  .page {
+    --nav-h: 64px;
+  }
+}
+.page [id] {
+  scroll-margin-top: 0;
+}
+
+.skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--pandora-ink);
+  color: var(--pandora-paper);
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip:focus-visible {
+  transform: none;
+}
+
+/* A full-screen scene. */
+.scene {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+/* A painted background that moves slower than the page (the parallax). It is taller than its scene so it can drift. */
+.art {
+  position: absolute;
+  inset: -12% 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* ---- Navigation ---- */
 .nav {
-  position: sticky;
-  top: 0;
+  position: fixed;
+  inset: 0 0 auto 0;
   z-index: 50;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  height: 96px;
+  height: var(--nav-h);
   padding-inline: 48px;
-  background: var(--pandora-paper);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .brand {
   justify-self: start;
@@ -37,16 +98,20 @@
 .link:hover {
   color: var(--pandora-ink);
 }
+.brand:focus-visible,
+.link:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
 .actions {
   --nav-button-width: 128px;
   display: flex;
   justify-content: flex-end;
   gap: 16px;
 }
-
 @media (max-width: 860px) {
   .nav {
-    height: 64px;
     padding-inline: 16px;
     grid-template-columns: 1fr auto;
   }
@@ -62,21 +127,33 @@
   }
 }
 
-/* The landscape sits behind the whole hero, fading to white under the nav. */
+/* ---- Hero ---- */
+/* Before scripts run, the hero's animated parts start hidden (html.motion is set by a tiny inline script when the
+   visitor allows motion) so the entrance doesn't flash. If scripts never finish, the failsafe reveals them. */
+:global(html.motion) .titleBox h1,
+:global(html.motion) .corners,
+:global(html.motion) .cue {
+  opacity: 0;
+  animation: pandora-failsafe 0s 4.5s forwards;
+}
+@keyframes pandora-failsafe {
+  to {
+    opacity: 1;
+  }
+}
+
 .hero {
-  position: relative;
-  background: var(--pandora-paper);
-  padding-top: clamp(0px, 2vw, 32px);
+  background: var(--pandora-ink);
+  padding-top: var(--nav-h);
 }
 .heroArt {
   position: absolute;
-  inset: 0 0 auto 0;
-  height: clamp(420px, 56vw, 854px);
+  inset: 0;
   overflow: hidden;
 }
 .heroArtImage {
   position: absolute;
-  inset: -40px 0;
+  inset: -6%;
   background: url("/landing/hero-landscape.webp") center / cover no-repeat;
   will-change: transform;
 }
@@ -84,59 +161,758 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, var(--pandora-paper) 0, rgba(255, 255, 255, 0) 38%);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0, rgba(255, 255, 255, 0) 30%);
+}
+.heroStage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: clamp(8px, 2svh, 24px) clamp(0px, 2vw, 24px) clamp(24px, 6svh, 56px);
+}
+.column {
+  position: relative;
+  width: min(920px, 100%);
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
 }
 
-/* Before scripts run, the hero's animated parts start hidden (html.motion is set by a tiny inline script when the
-   visitor allows motion) so the entrance doesn't flash. If scripts never finish, the failsafe reveals them. */
-:global(html.motion) .pane {
-  clip-path: inset(100% 0 0 0);
-  animation: pandora-failsafe 0s 4s forwards;
+/* Four see-through panes divided by white strips. The strips never move; a white curtain in each pane lifts away. */
+.panes {
+  display: flex;
+  flex: 0 0 clamp(120px, 34%, 300px);
 }
-:global(html.motion) .corners,
-:global(html.motion) .titleBox h1 {
-  opacity: 0;
-  animation: pandora-failsafe 0s 4s forwards;
+.strip {
+  flex: 0 0 clamp(8px, 1.6vw, 24px);
+  background: var(--pandora-paper);
 }
-@keyframes pandora-failsafe {
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
+.pane {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  :global(html) {
-    scroll-behavior: smooth;
-  }
-}
-
-.skip {
+.curtain {
+  display: none; /* only used when motion is allowed (html.motion), so a reduced-motion visitor sees the painting at once */
   position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 100;
-  padding: 10px 16px;
-  border-radius: 8px;
+  inset: -1px;
+  background: var(--pandora-paper);
+  transform-origin: top center;
+}
+:global(html.motion) .curtain {
+  display: block;
+  animation: pandora-lift 0s 4.5s forwards;
+}
+@keyframes pandora-lift {
+  to {
+    transform: scaleY(0);
+  }
+}
+
+.titleBox {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 24px clamp(40px, 11vw, 120px);
+  background: var(--pandora-paper);
+  color: var(--pandora-ink);
+  text-align: center;
+}
+.title {
+  display: block;
+  width: min(503px, 100%);
+  height: auto;
+}
+.corners {
+  position: absolute;
+  inset: 24px clamp(8px, 2vw, 24px) 0;
+  pointer-events: none;
+}
+.corners svg {
+  width: clamp(44px, 9vw, 100px);
+  height: clamp(44px, 9vw, 100px);
+}
+.cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(6px, 1.5svh, 14px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--pandora-paper);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+}
+.cueLine {
+  width: 2px;
+  height: 22px;
+  background: linear-gradient(to bottom, var(--pandora-paper), rgba(255, 255, 255, 0));
+  transform-origin: top;
+  animation: pandora-cue 1.8s ease-in-out infinite;
+}
+@keyframes pandora-cue {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cueLine {
+    animation: none;
+  }
+}
+
+/* ---- Ideology ---- */
+.ideology {
+  background: var(--pandora-ink);
+  padding-block: clamp(40px, 8svh, 96px);
+}
+.ideologyArt {
+  background-image: url("/landing/hero-landscape.webp");
+  background-position: center 90%;
+}
+.ideologyCard {
+  position: relative;
+  width: min(920px, 100% - clamp(0px, 4vw, 48px));
+  margin-inline: auto;
+  padding: clamp(32px, 7svh, 88px) clamp(24px, 5vw, 72px) clamp(28px, 5svh, 56px);
+  background: var(--pandora-paper);
+  text-align: center;
+}
+.ideologyHead {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  color: var(--pandora-violet);
+}
+.ideologyTitle {
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-ink);
+}
+.ideologyBody {
+  margin: clamp(16px, 3svh, 28px) 0 0;
+  font-size: clamp(16px, 1.45vw, 20px);
+  font-weight: 500;
+  line-height: 1.55;
+  text-align: left;
+  color: var(--pandora-mute);
+}
+@media (min-width: 700px) {
+  .ideologyBody {
+    text-align: justify;
+    hyphens: auto;
+  }
+}
+.ideologyRule {
+  width: 204px; /* twelve 17px diamonds, so none is cut off */
+  margin: clamp(20px, 4svh, 36px) auto 0;
+  color: var(--pandora-ink);
+}
+.zig {
+  transform-origin: center;
+}
+
+/* ---- A Challenge worth entering ---- */
+.challenge {
   background: var(--pandora-ink);
   color: var(--pandora-paper);
+  padding-block: calc(var(--nav-h) * 0.6) clamp(24px, 5svh, 56px);
+  gap: clamp(20px, 4svh, 48px);
+}
+.challengeArt {
+  background-image: url("/landing/dream-blue.webp");
+  filter: grayscale(1) brightness(0.5);
+}
+.marquee {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: flex;
+  gap: 4vw;
+  white-space: nowrap;
+  font-size: clamp(120px, 22vw, 340px);
   font-weight: 700;
-  text-decoration: none;
-  transform: translateY(-200%);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(255, 255, 255, 0.1);
+  transform: translateY(-50%);
+  pointer-events: none;
+  will-change: transform;
+  user-select: none;
 }
-.skip:focus-visible {
-  transform: none;
+.challengeInner {
+  position: relative;
+  padding-inline: clamp(16px, 6.35vw, 96px);
 }
-.page [id] {
-  scroll-margin-top: 88px;
+.challengeTop {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 3svh, 32px);
 }
-.brand:focus-visible,
-.link:focus-visible {
-  outline: 3px solid var(--pandora-violet);
-  outline-offset: 4px;
-  border-radius: 6px;
+.challengeTitle {
+  margin: 0;
+  font-size: clamp(40px, 4.2vw, 64px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--pandora-paper);
+}
+.challengeSub {
+  margin: 4px 0 0;
+  font-size: clamp(26px, 2.6vw, 40px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--pandora-paper);
+}
+.statement {
+  margin: 0;
+  max-width: 872px;
+  font-size: clamp(26px, 3.2vw, 48px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--pandora-paper);
+}
+.statementAccent {
+  color: var(--pandora-violet);
+}
+.statementBreak {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .challengeTop {
+    grid-template-columns: minmax(300px, 448px) 1fr;
+    align-items: end;
+  }
+  .statementBreak {
+    display: inline;
+  }
 }
 
+.facts {
+  position: relative;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 0 clamp(16px, 6.35vw, 96px);
+  background: rgba(30, 30, 30, 0.9);
+  border-block: 1px solid rgba(255, 255, 255, 0.6);
+}
+.fact {
+  padding: clamp(12px, 2.2svh, 22px) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
+}
+.fact:first-child {
+  border-top: 0;
+}
+.factLabel {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: #a9a9a9;
+}
+.factValue {
+  margin: 0;
+  font-size: clamp(26px, 2.4vw, 36px);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--pandora-paper);
+}
+.factCurrency {
+  margin-right: 4px;
+  font-size: 16px;
+  vertical-align: top;
+  position: relative;
+  top: 0.35em;
+}
+.factNote {
+  margin: 0;
+  max-width: 424px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 24px;
+  color: #a9a9a9;
+}
+@media (min-width: 700px) {
+  .facts {
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 32px;
+  }
+  .fact:nth-child(2) {
+    border-top: 0;
+  }
+}
+@media (min-width: 1100px) {
+  .facts {
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 0;
+  }
+  .fact:nth-child(-n + 3) {
+    border-top: 0;
+  }
+  .fact:nth-child(n + 4) {
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
+  }
+}
+
+.script {
+  margin: 0;
+  font-family: var(--pandora-font-script, "Segoe Script", cursive);
+  font-size: clamp(36px, 6.35vw, 96px);
+  line-height: 1;
+  color: var(--pandora-violet);
+}
+.scriptLine {
+  height: 2px;
+  margin-top: 8px;
+  background: var(--pandora-violet);
+}
+
+/* ---- Tracks ---- */
+.tracks {
+  background: var(--pandora-ink);
+  padding-block: calc(var(--nav-h) * 0.7) clamp(24px, 5svh, 56px);
+}
+.tracksArt {
+  background-image: url("/landing/tracks-ice.webp");
+}
+.tracks::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 18%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--pandora-paper));
+  pointer-events: none;
+}
+.tracksInner {
+  position: relative;
+  z-index: 1;
+  width: min(1320px, 100%);
+  margin-inline: auto;
+  padding-inline: clamp(16px, 2vw, 24px);
+}
+.tracksHeading {
+  margin: 0 0 clamp(16px, 3svh, 32px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-paper);
+}
+.tracksLead {
+  font-size: clamp(18px, 1.6vw, 24px);
+}
+.tracksBig {
+  padding: 0 0.25em;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: clamp(30px, 3.2vw, 48px);
+  font-weight: 700;
+  color: var(--pandora-ink);
+}
+
+/* The cards sit on one baseline; Track B is lifted with a transform, so nothing can overlap the panel below. */
+.trackCards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding-top: 0;
+}
+.trackCard {
+  display: flex;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: filter 0.3s ease; /* no transform transition: GSAP drives the card transform */
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.trackCard:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 4px;
+}
+.trackTilt {
+  display: flex;
+  flex: 1;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.trackCardSelected {
+  filter: drop-shadow(0 14px 26px rgba(30, 30, 30, 0.32));
+}
+.trackCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px 22px;
+}
+.trackId {
+  font-size: clamp(24px, 2.1vw, 32px);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--pandora-gold);
+}
+.trackName {
+  font-size: clamp(18px, 1.6vw, 24px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-ink);
+}
+.trackSummary {
+  margin-top: 4px;
+  font-size: clamp(15px, 1.3vw, 20px);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--pandora-mute);
+}
+@media (min-width: 640px) {
+  .trackCards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1100px) {
+  .trackCards {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    padding-top: 44px;
+  }
+  .trackCard {
+    height: clamp(260px, 38svh, 380px);
+  }
+  .trackCardRaised {
+    margin-top: -44px;
+    margin-bottom: 44px;
+  }
+}
+
+.trackPanel {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: clamp(16px, 3svh, 28px);
+  background: var(--pandora-paper);
+  border: 2px solid var(--pandora-gold);
+}
+.trackPanelCell {
+  padding: 14px 18px 18px;
+  border-top: 2px solid var(--pandora-gold);
+}
+.trackPanelCell:first-child {
+  border-top: 0;
+}
+.trackPanelTitle {
+  margin: 0;
+  font-size: clamp(18px, 1.6vw, 24px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-ink);
+}
+.trackPanelText {
+  margin: 0;
+  font-size: clamp(15px, 1.3vw, 20px);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--pandora-mute);
+}
+@media (min-width: 900px) {
+  .trackPanel {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .trackPanelCell {
+    border-top: 0;
+    border-left: 2px solid var(--pandora-gold);
+  }
+  .trackPanelCell:first-child {
+    border-left: 0;
+  }
+}
+
+/* ---- Timeline ---- */
+.timeline {
+  --stage: var(--pandora-violet);
+  background: #fbfaff;
+  color: var(--pandora-ink);
+  padding-block: calc(var(--nav-h) + 8px) clamp(24px, 5svh, 48px);
+  transition: background-color 0.8s ease;
+}
+.timelineGhost {
+  position: absolute;
+  right: -2vw;
+  bottom: -6vw;
+  font-size: clamp(220px, 40vw, 640px);
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2px color-mix(in srgb, var(--stage) 22%, transparent);
+  pointer-events: none;
+  user-select: none;
+  transition: -webkit-text-stroke-color 0.8s ease;
+}
+.timelineInner {
+  position: relative;
+  width: 100%;
+}
+.timelineHead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-inline: clamp(16px, 6.35vw, 96px);
+  margin-bottom: clamp(16px, 4svh, 40px);
+}
+.timelineTitle {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 52px);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--pandora-ink);
+}
+.timelineCount {
+  font-size: clamp(16px, 1.6vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--pandora-mute);
+  font-variant-numeric: tabular-nums;
+}
+.timelineCountNow {
+  color: var(--stage);
+  transition: color 0.6s ease;
+}
+
+/* Wide screens: GSAP pins the scene and slides the track sideways. */
+.timelineViewport {
+  position: relative;
+  overflow-x: clip; /* sideways overflow is the point; the cards may grow vertically without being cut */
+}
+.timelineTrack {
+  position: relative;
+  width: max-content;
+  padding: 0 clamp(16px, 6.35vw, 96px);
+}
+.timelineList {
+  position: relative;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: clamp(16px, 2.4vw, 40px);
+}
+/* The line runs the whole length of the track behind the nodes; a coloured copy fills in as you progress. */
+.timelineLine,
+.timelineFill {
+  position: absolute;
+  top: 50%;
+  left: clamp(16px, 6.35vw, 96px);
+  right: clamp(16px, 6.35vw, 96px);
+  height: 3px;
+  border-radius: 3px;
+  transform: translateY(-1.5px);
+}
+.timelineLine {
+  background: #dcd7ec;
+}
+.timelineFill {
+  background: linear-gradient(90deg, var(--pandora-violet), var(--pandora-sky), var(--pandora-rose), var(--pandora-gold));
+  transform-origin: left center;
+  transform: translateY(-1.5px) scaleX(0);
+}
+
+.milestone {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  flex: 0 0 clamp(260px, 24vw, 380px);
+  height: clamp(440px, 64svh, 580px);
+}
+.milestoneNode {
+  grid-row: 2;
+  justify-self: start;
+  position: relative;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  margin-left: 28px;
+  border-radius: 50%;
+  background: #cfcbe0;
+  box-shadow: 0 0 0 5px #fbfaff, 0 0 0 7px var(--timeline-color);
+  transition: background-color 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.milestone[data-state="done"] .milestoneNode,
+.milestone[data-state="active"] .milestoneNode {
+  background: var(--pandora-ink);
+}
+.milestone[data-state="active"] .milestoneNode {
+  transform: scale(1.4);
+}
+.milestoneStem {
+  position: absolute;
+  left: 38px;
+  width: 2px;
+  background: var(--timeline-color);
+  opacity: 0.5;
+}
+.milestoneAbove .milestoneStem {
+  top: 50%;
+  bottom: calc(50% - 0px);
+}
+.milestoneCard {
+  position: relative;
+  grid-row: 1;
+  align-self: end;
+  margin-bottom: 26px;
+  padding: 18px 22px 22px;
+  border-radius: 20px;
+  border: 2px solid var(--timeline-color);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--timeline-color) 20%, transparent);
+  backdrop-filter: blur(6px);
+  opacity: 0.4;
+  transform: scale(0.96);
+  transform-origin: left bottom;
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease;
+}
+.milestoneBelow .milestoneCard {
+  grid-row: 3;
+  align-self: start;
+  margin-bottom: 0;
+  margin-top: 26px;
+  transform-origin: left top;
+}
+.milestone[data-state="done"] .milestoneCard {
+  opacity: 0.75;
+  transform: scale(0.98);
+}
+.milestone[data-state="active"] .milestoneCard {
+  opacity: 1;
+  transform: scale(1.04);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--timeline-color) 38%, transparent);
+}
+.milestoneIndex {
+  display: block;
+  margin: 0 0 4px;
+  font-size: clamp(40px, 4vw, 64px);
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--timeline-color);
+}
+.milestoneDate {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--timeline-color) 22%, white);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 24px;
+  color: var(--pandora-ink);
+}
+.milestoneTitle {
+  margin: 0 0 6px;
+  font-size: clamp(20px, 1.9vw, 28px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--pandora-ink);
+}
+.milestoneText {
+  margin: 0;
+  font-size: clamp(15px, 1.2vw, 18px);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--pandora-mute);
+}
+.violet {
+  --timeline-color: var(--pandora-violet);
+}
+.sky {
+  --timeline-color: var(--pandora-sky);
+}
+.rose {
+  --timeline-color: var(--pandora-rose);
+}
+.gold {
+  --timeline-color: var(--pandora-gold);
+}
+
+/* Phones, narrow windows and reduced motion: a vertical timeline down the page, each stop revealing as you reach it. */
+@media (max-width: 899px), (prefers-reduced-motion: reduce) {
+  .timeline {
+    justify-content: flex-start;
+    padding-top: calc(var(--nav-h) + 24px);
+  }
+  .timelineViewport {
+    overflow: visible;
+  }
+  .timelineTrack {
+    width: auto;
+    padding: 0 clamp(16px, 6.35vw, 96px) 0 calc(clamp(16px, 6.35vw, 96px) + 28px);
+  }
+  .timelineList {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .timelineLine,
+  .timelineFill {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    left: calc(clamp(16px, 6.35vw, 96px) + 10px);
+    width: 3px;
+    height: auto;
+    transform: none;
+  }
+  .timelineFill {
+    transform-origin: top center;
+    transform: scaleY(0);
+  }
+  .milestone {
+    display: block;
+    flex: 0 0 auto;
+    height: auto;
+  }
+  .milestoneNode {
+    position: absolute;
+    left: -28px;
+    top: 22px;
+    margin: 0;
+  }
+  .milestoneStem {
+    display: none;
+  }
+  .milestoneCard,
+  .milestoneBelow .milestoneCard {
+    margin: 0;
+    transform-origin: left center;
+  }
+  .milestone[data-state="idle"] .milestoneCard,
+  .milestone .milestoneCard {
+    opacity: 1;
+    transform: none;
+  }
+  .milestone[data-state="active"] .milestoneCard {
+    transform: scale(1.02);
+  }
+}
+
+/* ---- Footer ---- */
 .footer {
   padding: 32px clamp(16px, 6.35vw, 96px);
   background: var(--pandora-ink);
@@ -159,557 +935,6 @@
 }
 .footer a {
   color: var(--pandora-paper);
-}
-
-.page {
-  background: var(--pandora-paper);
-  color-scheme: light;
-  /* BT Beau Sans, the design's typeface, for this page only; Astryx components pick it up through these tokens. */
-  --font-family-body: var(--pandora-font-sans), Figtree, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-family-heading: var(--font-family-body);
-  font-family: var(--font-family-body);
-  /* The design's accent is ink, not the app-wide blue: Astryx primary buttons and steppers follow it. */
-  --color-accent: var(--pandora-ink);
-  --color-on-accent: var(--pandora-paper);
-}
-
-.column {
-  position: relative;
-  max-width: 920px;
-  margin-inline: auto;
-}
-
-/* Four see-through panes divided by white strips (24px at full size). */
-.panes {
-  display: flex;
-  height: clamp(110px, 24vw, 231px);
-}
-.pane {
-  flex: 1;
-  border-inline: clamp(4px, 0.8vw, 12px) solid var(--pandora-paper);
-}
-.pane:first-child {
-  border-left-width: clamp(8px, 1.6vw, 24px);
-}
-.pane:last-child {
-  border-right-width: clamp(8px, 1.6vw, 24px);
-}
-
-.titleBox {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: clamp(180px, 28vw, 264px);
-  padding: 30px clamp(48px, 11vw, 120px) 0;
-  background: var(--pandora-paper);
-  color: var(--pandora-ink);
-  text-align: center;
-}
-.title {
-  display: block;
-  width: min(503px, 100%);
-  height: auto;
-}
-
-.ideology {
-  position: relative;
-  background: var(--pandora-paper);
-  padding: clamp(40px, 8vw, 141px) clamp(24px, 5vw, 72px) clamp(40px, 6vw, 50px);
-  text-align: center;
-}
-.ideologyHead {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 24px;
-  color: var(--pandora-violet);
-}
-.ideologyTitle {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 36px;
-  color: var(--pandora-ink);
-}
-.ideologyBody {
-  margin: 24px 0 0;
-  font-size: clamp(16px, 1.4vw, 20px);
-  font-weight: 500;
-  line-height: 1.5;
-  text-align: left;
-  color: var(--pandora-mute);
-}
-@media (min-width: 700px) {
-  .ideologyBody {
-    text-align: justify;
-    hyphens: auto;
-  }
-}
-.ideologyRule {
-  width: 204px; /* twelve 17px diamonds, so none is cut off */
-  margin: 32px auto 0;
-  color: var(--pandora-ink);
-}
-.zig {
-  transform-origin: center;
-}
-
-.corners {
-  position: absolute;
-  inset: 30px 24px 0 24px;
-  pointer-events: none;
-}
-.corners svg {
-  width: clamp(44px, 9vw, 100px);
-  height: clamp(44px, 9vw, 100px);
-}
-
-/* ---- A Challenge worth entering ---- */
-.challenge {
-  position: relative;
-  overflow: hidden;
-  color: var(--pandora-paper);
-  background: var(--pandora-ink);
-  padding-block: clamp(48px, 8vw, 117px) clamp(48px, 7vw, 100px);
-}
-.challengeArt {
-  position: absolute;
-  inset: -60px 0;
-  background: url("/landing/dream-blue.webp") center / cover no-repeat;
-  filter: grayscale(1) brightness(0.55);
-  will-change: transform;
-}
-.challengeInner {
-  position: relative;
-  padding-inline: clamp(16px, 6.35vw, 96px);
-}
-.challengeTop {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 32px;
-}
-.challengeTitle {
-  color: var(--pandora-paper);
-  margin: 0;
-  font-size: clamp(32px, 3.2vw, 48px);
-  font-weight: 700;
-  line-height: 1.5;
-}
-.challengeSub {
-  color: var(--pandora-paper);
-  margin: 0;
-  font-size: clamp(18px, 1.6vw, 24px);
-  font-weight: 500;
-  line-height: 1.5;
-}
-.statement {
-  color: var(--pandora-paper);
-  margin: 0;
-  max-width: 872px;
-  font-size: clamp(26px, 3.2vw, 48px);
-  font-weight: 500;
-  line-height: 1.2;
-}
-.statementAccent {
-  color: var(--pandora-violet);
-}
-.statementBreak {
-  display: none;
-}
-@media (min-width: 1000px) {
-  .challengeTop {
-    grid-template-columns: 448px 1fr;
-    gap: 0;
-    min-height: 220px;
-    align-items: start;
-  }
-  .statement {
-    margin-top: 90px;
-  }
-  .statementBreak {
-    display: inline;
-  }
-}
-
-.facts {
-  position: relative;
-  margin: clamp(32px, 6vw, 100px) 0 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  padding: 0 clamp(16px, 6.35vw, 96px);
-  background: rgba(30, 30, 30, 0.94);
-  border-block: 1px solid var(--pandora-paper);
-}
-.fact {
-  min-height: 160px;
-  padding: 16px 0 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-}
-.fact:first-child {
-  border-top: 0;
-}
-.factLabel {
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
-  color: var(--pandora-mute);
-}
-.factValue {
-  color: var(--pandora-paper);
-  margin: 0;
-  font-size: clamp(26px, 2.4vw, 36px);
-  font-weight: 500;
-  line-height: 1.5;
-}
-.factCurrency {
-  margin-right: 4px;
-  font-size: 16px;
-  vertical-align: top;
-  position: relative;
-  top: 0.35em;
-}
-.factNote {
-  margin: 0;
-  max-width: 424px;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 24px;
-  color: var(--pandora-mute);
-}
-@media (min-width: 700px) {
-  .facts {
-    grid-template-columns: repeat(2, 1fr);
-    column-gap: 32px;
-  }
-  .fact:nth-child(2) {
-    border-top: 0;
-  }
-}
-@media (min-width: 1100px) {
-  .facts {
-    grid-template-columns: repeat(3, 1fr);
-    column-gap: 0;
-  }
-  .fact:nth-child(-n + 3) {
-    border-top: 0;
-  }
-  .fact:nth-child(n + 4) {
-    border-top: 1px solid rgba(255, 255, 255, 0.35);
-  }
-}
-
-.script {
-  margin: clamp(32px, 5vw, 80px) 0 0;
-  font-family: var(--pandora-font-script, "Segoe Script", cursive);
-  font-size: clamp(36px, 6.35vw, 96px);
-  line-height: 1;
-  color: var(--pandora-violet);
-}
-.scriptLine {
-  height: 2px;
-  margin-top: 8px;
-  background: var(--pandora-violet);
-}
-
-/* ---- Tracks ---- */
-.tracks {
-  position: relative;
-  overflow: hidden;
-  background: var(--pandora-paper);
-  padding-block: clamp(48px, 7vw, 100px);
-}
-.tracksBg {
-  position: absolute;
-  inset: 0;
-  background: url("/landing/tracks-ice.webp") center / cover no-repeat;
-}
-.tracksBg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 80%, var(--pandora-paper) 100%);
-}
-.tracksInner {
-  position: relative;
-  max-width: 1320px;
-  margin-inline: auto;
-  padding-inline: clamp(16px, 2vw, 24px);
-}
-.tracksHeading {
-  margin: 0 0 clamp(32px, 5vw, 64px);
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--pandora-paper);
-}
-.tracksLead {
-  font-size: clamp(18px, 1.6vw, 24px);
-}
-.tracksBig {
-  padding: 0 0.25em;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
-  font-size: clamp(30px, 3.2vw, 48px);
-  font-weight: 700;
-  color: var(--pandora-ink);
-}
-
-.trackCards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-.trackCard {
-  display: flex;
-  min-height: 300px;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  transition: transform 0.25s ease, filter 0.25s ease;
-}
-.trackCard:focus-visible {
-  outline: 3px solid var(--pandora-violet);
-  outline-offset: 4px;
-}
-.trackCard:hover,
-.trackCardSelected {
-  transform: translateY(-8px);
-}
-.trackCardSelected {
-  filter: drop-shadow(0 12px 24px rgba(30, 30, 30, 0.25));
-}
-.trackCardBody {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 18px 24px;
-}
-.trackId {
-  font-size: 32px;
-  font-weight: 500;
-  line-height: 48px;
-  color: var(--pandora-gold);
-}
-.trackName {
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 36px;
-  color: var(--pandora-ink);
-}
-.trackSummary {
-  margin-top: 4px;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 24px;
-  color: var(--pandora-mute);
-}
-@media (min-width: 640px) {
-  .trackCards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (min-width: 1100px) {
-  .trackCards {
-    grid-template-columns: repeat(4, 1fr);
-    align-items: start;
-  }
-  .trackCard {
-    min-height: 390px;
-  }
-  .trackCardRaised {
-    margin-top: -53px;
-  }
-}
-
-.trackPanel {
-  display: grid;
-  grid-template-columns: 1fr;
-  margin-top: 24px;
-  background: var(--pandora-paper);
-  border: 2px solid var(--pandora-gold);
-}
-.trackPanelCell {
-  padding: 14px 18px 20px;
-  border-top: 2px solid var(--pandora-gold);
-}
-.trackPanelCell:first-child {
-  border-top: 0;
-}
-.trackPanelTitle {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 36px;
-  color: var(--pandora-ink);
-}
-.trackPanelText {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 24px;
-  color: var(--pandora-mute);
-}
-@media (min-width: 900px) {
-  .trackPanel {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .trackPanelCell {
-    border-top: 0;
-    border-left: 2px solid var(--pandora-gold);
-  }
-  .trackPanelCell:first-child {
-    border-left: 0;
-  }
-}
-
-/* ---- Timeline ---- */
-.timeline {
-  background: var(--pandora-paper);
-  color: var(--pandora-ink);
-  padding-block: clamp(40px, 6vw, 80px);
-}
-.timelineInner {
-  max-width: 1512px;
-  margin-inline: auto;
-}
-.timelineTitle {
-  margin: 0 0 clamp(24px, 4vw, 48px);
-  padding-inline: clamp(16px, 6.35vw, 96px);
-  font-size: clamp(26px, 2.4vw, 36px);
-  font-weight: 700;
-  line-height: 1.4;
-  color: var(--pandora-ink);
-}
-
-/* Native sideways scroll: the default, and the whole story on phones and with reduced motion. */
-.timelineViewport {
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: clamp(16px, 6.35vw, 96px);
-  padding-block: 8px;
-}
-.timelineViewport:focus-visible {
-  outline: 3px solid var(--pandora-violet);
-  outline-offset: -3px;
-}
-.timelineTrack {
-  position: relative;
-  display: flex;
-  width: max-content;
-  min-width: 100%;
-  margin: 0;
-  padding: 0 clamp(16px, 6.35vw, 96px);
-  list-style: none;
-  gap: 32px;
-}
-
-/* Each milestone is a column: card, node on the line, empty space. The line runs through the nodes. */
-.milestone {
-  position: relative;
-  display: grid;
-  grid-template-rows: 1fr auto 1fr;
-  flex: 0 0 min(300px, 78vw);
-  height: 460px;
-  scroll-snap-align: start;
-}
-.milestone::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -16px;
-  right: -16px;
-  height: 2px;
-  background: var(--pandora-ink);
-  transform: translateY(-1px);
-}
-.milestoneCard {
-  position: relative;
-  align-self: end;
-  grid-row: 1;
-  margin-bottom: 28px;
-  padding: 18px 20px 20px;
-  border: 2px solid var(--timeline-color);
-  border-radius: 16px;
-  background: var(--pandora-paper);
-}
-.milestoneBelow .milestoneCard {
-  grid-row: 3;
-  align-self: start;
-  margin-bottom: 0;
-  margin-top: 28px;
-}
-.milestoneNode {
-  grid-row: 2;
-  justify-self: start;
-  position: relative;
-  z-index: 1;
-  width: 20px;
-  height: 20px;
-  margin-left: 24px;
-  border-radius: 50%;
-  background: var(--pandora-ink);
-  box-shadow: 0 0 0 4px var(--pandora-paper), 0 0 0 7px var(--timeline-color);
-}
-.milestoneDate {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  color: var(--pandora-mute);
-}
-.milestoneTitle {
-  margin: 2px 0 6px;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 32px;
-  color: var(--pandora-ink);
-}
-.milestoneText {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 24px;
-  color: var(--pandora-mute);
-}
-.violet {
-  --timeline-color: var(--pandora-violet);
-}
-.sky {
-  --timeline-color: var(--pandora-sky);
-}
-.rose {
-  --timeline-color: var(--pandora-rose);
-}
-.gold {
-  --timeline-color: var(--pandora-gold);
-}
-
-/* While GSAP has the section pinned (it sets data-pinned), the sideways movement is driven by scroll, so the
-   native scrollbar and snapping step aside. */
-.timeline[data-pinned="true"] {
-  box-sizing: border-box;
-  min-height: 100vh;
-  padding-top: 96px; /* clears the sticky nav */
-  display: flex;
-  align-items: center;
-}
-.timeline[data-pinned="true"] .timelineInner {
-  width: 100%;
-}
-.timeline[data-pinned="true"] .timelineViewport {
-  overflow: hidden;
-  scroll-snap-type: none;
-}
-.timeline[data-pinned="true"] .milestone {
-  flex-basis: 360px;
-  height: min(480px, 62vh);
 }
 
 /* ---- About us and past events ---- */
@@ -1002,4 +1227,24 @@
   min-height: 44px;
   border-radius: 8px;
   font-weight: 700;
+}
+
+/* About and Register are full-screen scenes too. */
+.about,
+.register {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.about {
+  padding-block: calc(var(--nav-h) * 0.8) clamp(24px, 5svh, 56px);
+}
+.register {
+  padding-block: calc(var(--nav-h) * 0.8) clamp(24px, 5svh, 56px);
+}
+.aboutBg,
+.registerBg {
+  inset: -12% 0;
+  will-change: transform;
 }

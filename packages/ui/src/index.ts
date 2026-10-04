@@ -1,6 +1,7 @@
 export { Wordmark, type WordmarkProps } from "./wordmark";
 export { CornerOrnament, DiamondRule, OrnamentFrame, ZigzagDivider, type Corner, type OrnamentFrameProps } from "./ornaments";
-export { gsap, ScrollTrigger, useGSAP } from "./motion/gsap";
+export { gsap, ScrollTrigger, SplitText, useGSAP } from "./motion/gsap";
+export { scrollToTarget, SmoothScroll } from "./motion/smooth-scroll";
 export { Reveal, type RevealProps } from "./motion/reveal";
 export { usePrefersReducedMotion } from "./motion/use-prefers-reduced-motion";
 export { AppProviders, LightScope } from "./providers";

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { pageTitle, siteConfig } from "@pandora/core";
-import { LightScope } from "@pandora/ui";
+import { LightScope, SmoothScroll } from "@pandora/ui";
 import { About } from "../features/landing/about";
 import { Challenge } from "../features/landing/challenge";
 import { Hero } from "../features/landing/hero";
@@ -50,6 +50,7 @@ export default function HomePage() {
         <a href="#overview" className={styles.skip}>
           Skip to the content
         </a>
+        <SmoothScroll />
         <LandingNav />
         <main>
           <Hero />

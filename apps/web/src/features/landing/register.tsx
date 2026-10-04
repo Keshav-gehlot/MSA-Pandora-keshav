@@ -1,6 +1,7 @@
 import { isPaymentEnabled, SRM_EMAIL_DOMAIN, TEAM_SIZE, UPLOADS } from "@pandora/core";
 import { OrnamentFrame } from "@pandora/ui";
 import { RegistrationSection } from "../registration/registration-section";
+import { RegisterMotion } from "./register-motion";
 import styles from "./landing.module.css";
 
 const megabytes = (bytes: number) => Math.round(bytes / (1024 * 1024));
@@ -11,13 +12,17 @@ export function Register() {
 
   return (
     <section id="register" className={styles.register} aria-labelledby="register-title">
-      <div className={styles.registerBg} aria-hidden="true" />
+      <RegisterMotion />
+      <div className={styles.registerBg} data-art-image aria-hidden="true" />
       <div className={styles.registerInner}>
-        <p className={styles.registerKicker}>let&rsquo;s get you geared up:</p>
-        <h2 id="register-title" className={styles.registerTitle}>
-          Register your team for <span className={styles.registerMark}>MSA Pandora</span>
-        </h2>
+        <div data-register-head>
+          <p className={styles.registerKicker}>let&rsquo;s get you geared up:</p>
+          <h2 id="register-title" className={styles.registerTitle}>
+            Register your team for <span className={styles.registerMark}>MSA Pandora</span>
+          </h2>
+        </div>
 
+        <div data-register-card>
         <OrnamentFrame cornerSize={50} inset={12} style={{ background: "var(--pandora-paper)", borderRadius: 24 }}>
           <div className={styles.registerCard}>
             <div className={styles.registerForm}>
@@ -51,6 +56,7 @@ export function Register() {
             </aside>
           </div>
         </OrnamentFrame>
+        </div>
       </div>
     </section>
   );

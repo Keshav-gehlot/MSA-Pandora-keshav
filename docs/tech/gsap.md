@@ -13,6 +13,7 @@ component transitions, weak for long scroll choreography).
 **In this repo.** Only `packages/ui` depends on it. Import `gsap`, `ScrollTrigger` and `useGSAP` from
 `@pandora/ui`, never from `gsap` directly: `packages/ui/src/motion/gsap.ts` registers the plugins once.
 Animate only inside client components, and always honour `usePrefersReducedMotion()`: with reduced motion the
-content must simply be there, unhidden. `<Reveal>` is the ready-made fade-and-lift for a block.
+content must simply be there, unhidden. `<Reveal>` is the ready-made fade-and-lift for a block. `SplitText` (also exported) splits text into words
+or lines for reveals; smooth scrolling is `<SmoothScroll />` (see `lenis.md`).
 
 **Read next.** https://gsap.com/docs/v3/ and https://gsap.com/resources/React/

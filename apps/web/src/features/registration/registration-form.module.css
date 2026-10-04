@@ -1,0 +1,163 @@
+/* Layout for the registration form, following the Figma card: two-column name row, full-width fields, the SRM email
+   with its fixed domain suffix and the send-code button beside it, and a compact progress header. */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.back {
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--pandora-ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pandora-ink);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.back:disabled {
+  border-color: #cfcfcf;
+  color: #b5b5b5;
+  cursor: default;
+}
+.back:focus-visible {
+  outline: 3px solid var(--pandora-violet);
+  outline-offset: 2px;
+}
+.progress {
+  flex: 1;
+  min-width: 0;
+}
+.progressLabel {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--pandora-mute);
+}
+.progressBar {
+  display: flex;
+  gap: 6px;
+}
+.progressSegment {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e2e2;
+}
+.progressSegmentDone {
+  background: var(--pandora-ink);
+}
+.progressSegmentActive {
+  background: var(--pandora-violet);
+}
+
+.stepHeading {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 30px;
+  color: var(--pandora-ink);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.full {
+  grid-column: 1 / -1;
+}
+@media (min-width: 640px) {
+  .fields {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
+  }
+}
+
+.emailRow {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.emailInput {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.suffix {
+  flex: 0 0 auto;
+  padding-top: 28px; /* lines it up with the input, below the label */
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 48px;
+  color: var(--pandora-mute);
+}
+.sendCode {
+  flex: 0 0 auto;
+  margin-top: 28px;
+}
+/* On a phone the input takes the full row, and the domain and Send code share the row beneath it. */
+@media (max-width: 639px) {
+  .emailInput {
+    flex-basis: 100%;
+  }
+  .suffix {
+    flex: 1;
+    padding-top: 0;
+    line-height: 44px;
+  }
+  .sendCode {
+    margin-top: 0;
+  }
+}
+
+.codeBox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f6f6f6;
+}
+.codeHint {
+  flex: 1 0 100%;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  color: var(--pandora-mute);
+}
+.codeInput {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.verify {
+  flex: 0 0 auto;
+  margin-top: 28px;
+}
+.verified {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #e8f6ec;
+  color: #14532d;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}

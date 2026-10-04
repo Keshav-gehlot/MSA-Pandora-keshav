@@ -8,8 +8,6 @@ import {
   FileInput,
   Heading,
   Selector,
-  Step,
-  Stepper,
   Text,
   TextInput,
 } from "@pandora/ui";
@@ -18,6 +16,7 @@ import {
   checkUpload,
   memberSchema,
   registrationSchema,
+  SRM_EMAIL_DOMAIN,
   teamStepSchema,
   TRACKS,
   UPLOADS,
@@ -30,17 +29,18 @@ import {
   submitRegistration,
   verifyRegistrationCode,
 } from "./actions";
+import styles from "./registration-form.module.css";
 
 
 const STORAGE_KEY = "pandora-registration-v1";
 
 const MEMBER_FIELDS = [
   { key: "firstName", label: "First name", type: "text" },
-  { key: "lastName", label: "Last name", type: "text" },
+  { key: "lastName", label: "Middle + last name", type: "text" },
   { key: "regNumber", label: "Registration number", type: "text" },
   { key: "srmEmail", label: "SRM email", type: "email" },
   { key: "personalEmail", label: "Personal email", type: "email" },
-  { key: "phone", label: "Phone number", type: "tel" },
+  { key: "phone", label: "Mobile number (WhatsApp)", type: "tel" },
 ] as const;
 
 type MemberField = (typeof MEMBER_FIELDS)[number]["key"];
@@ -99,27 +99,6 @@ function isRegistrationStep(value: unknown): value is RegistrationStep {
 
 function isMemberField(value: unknown): value is MemberField {
   return MEMBER_FIELDS.some((field) => field.key === value);
-}
-
-function stepTitle(step: RegistrationStep): string {
-  switch (step) {
-    case "team":
-      return "Step 1 — Team details";
-    case "leader":
-      return "Step 2 — Team Leader";
-    case "member-2":
-      return "Step 3 — Member 2";
-    case "member-3":
-      return "Step 4 — Member 3";
-    case "member-4":
-      return "Step 5 — Member 4";
-    case "review":
-      return "Step 6 — Review";
-    case "payment":
-      return "Step 7 — Payment";
-    case "done":
-      return "Registration complete";
-  }
 }
 
 function stepForMemberIndex(index: number): EditableStep {
@@ -1080,66 +1059,147 @@ if (!result.ok) {
       return null;
     }
 
-    return (
-      <>
-        {MEMBER_FIELDS.map(({ key, label, type }) => {
-const fieldError = memberFieldError(
-  index,
-  key,
-);
+    const isLeader = index === 0;
 
-const statusMessage =
-  fieldError ??
-  (index === 0 && key === "srmEmail"
-    ? leaderCodeError
-    : null);
+    function renderField(key: MemberField) {
+      const meta = MEMBER_FIELDS.find((field) => field.key === key);
 
-          const inputId = `${memberLabel
-            .toLowerCase()
-            .replace(/\s+/g, "-")}-${key}`;
-
-          return (
-            <TextInput
-              key={key}
-              id={inputId}
-              type={
-                type === "email"
-                  ? "email"
-                  : "text"
-              }
-              value={member[key]}
-              label={`${label} *`}
-              isRequired
-              placeholder={
-                key === "regNumber"
-                  ? "RA2611026010690"
-                  : key === "srmEmail"
-                    ? "yourname@srmist.edu.in"
-                    : key === "personalEmail"
-                      ? "you@example.com"
-                      : key === "phone"
-                        ? "10-digit mobile number"
-                        : `Enter ${label.toLowerCase()}`
-              }
-status={
-  statusMessage
-    ? {
-        type: "error",
-        message: statusMessage,
+      if (!meta || !member) {
+        return null;
       }
-    : undefined
-}
-              onChange={(value) =>
-                updateMember(
-                  index,
-                  key,
-                  value,
-                )
-              }
-            />
-          );
-        })}
-      </>
+
+      const fieldError = memberFieldError(index, key);
+      const statusMessage =
+        fieldError ?? (isLeader && key === "srmEmail" ? leaderCodeError : null);
+      const inputId = `${memberLabel.toLowerCase().replace(/\s+/g, "-")}-${key}`;
+      const status = statusMessage
+        ? ({ type: "error", message: statusMessage } as const)
+        : undefined;
+
+      if (key === "srmEmail") {
+        const suffix = `@${SRM_EMAIL_DOMAIN}`;
+        const local = member.srmEmail.endsWith(suffix)
+          ? member.srmEmail.slice(0, -suffix.length)
+          : member.srmEmail.split("@")[0] ?? "";
+
+        return (
+          <div className={`${styles.emailRow} ${styles.full}`} key={key}>
+            <div className={styles.emailInput}>
+              <TextInput
+                id={inputId}
+                type="text"
+                value={local}
+                label="SRM email address *"
+                isRequired
+                placeholder="ra2611026010690"
+                status={status}
+                onChange={(value) => {
+                  const cleaned = value.split("@")[0]?.trim().toLowerCase() ?? "";
+                  updateMember(index, key, cleaned ? `${cleaned}${suffix}` : "");
+                }}
+              />
+            </div>
+            <span className={styles.suffix}>{suffix}</span>
+            {isLeader ? (
+              <div className={styles.sendCode}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  label={
+                    leaderVerified
+                      ? "Email verified"
+                      : resendSeconds > 0
+                        ? `Resend in ${resendSeconds}s`
+                        : leaderCodeSent
+                          ? "Send again"
+                          : "Send code"
+                  }
+                  isDisabled={resendSeconds > 0 || leaderVerified}
+                  onClick={handleSendLeaderCode}
+                />
+              </div>
+            ) : null}
+          </div>
+        );
+      }
+
+      const isHalf = key === "firstName" || key === "lastName";
+
+      return (
+        <div className={isHalf ? undefined : styles.full} key={key}>
+          <TextInput
+            id={inputId}
+            type={meta.type === "email" ? "email" : "text"}
+            value={member[key]}
+            label={`${meta.label} *`}
+            isRequired
+            placeholder={
+              key === "regNumber"
+                ? "RA2611026010690"
+                : key === "personalEmail"
+                  ? "you@example.com"
+                  : key === "phone"
+                    ? "10-digit mobile number"
+                    : key === "firstName"
+                      ? "First name"
+                      : "Middle and last name"
+            }
+            status={status}
+            onChange={(value) => updateMember(index, key, value)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className={styles.fields}>
+        {renderField("firstName")}
+        {renderField("lastName")}
+        {renderField("phone")}
+        {renderField("srmEmail")}
+        {isLeader && leaderCodeSent && !leaderVerified ? (
+          <div className={styles.codeBox}>
+            <p className={styles.codeHint}>
+              We sent a 6-digit code to your SRM email. Enter it here.
+            </p>
+            <div className={styles.codeInput}>
+              <TextInput
+                id="leader-verification-code"
+                type="text"
+                label="Verification code *"
+                isRequired
+                value={leaderEmailCode}
+                placeholder="6-digit code"
+                status={
+                  leaderCodeError
+                    ? { type: "error", message: leaderCodeError }
+                    : undefined
+                }
+                onChange={(value) => {
+                  setLeaderEmailCode(value.replace(/\D/g, "").slice(0, 6));
+                  setLeaderCodeError(null);
+                }}
+              />
+            </div>
+            <div className={styles.verify}>
+              <Button
+                type="button"
+                variant="primary"
+                label="Verify code"
+                isDisabled={leaderEmailCode.length !== 6}
+                onClick={handleVerifyLeaderCode}
+              />
+            </div>
+          </div>
+        ) : null}
+        {isLeader && leaderVerified ? (
+          <p className={styles.verified} role="status">
+            SRM email verified
+          </p>
+        ) : null}
+        {renderField("regNumber")}
+        {renderField("personalEmail")}
+      </div>
     );
   }
     function renderMemberPhoto(index: number) {
@@ -1233,92 +1293,75 @@ const memberFour = registration.members[3];
     paymentEnabled,
   );
 
+  // The step before the current one, for the back button. Member 4 is optional, so it counts only if it exists.
+  const previousStep: RegistrationStep | null = (() => {
+    switch (step) {
+      case "leader":
+        return "team";
+      case "member-2":
+        return "leader";
+      case "member-3":
+        return "member-2";
+      case "member-4":
+        return "member-3";
+      case "review":
+        return registration.members.length > 3 ? "member-4" : "member-3";
+      case "payment":
+        return "review";
+      default:
+        return null;
+    }
+  })();
+
+  function goBack() {
+    if (!previousStep) {
+      return;
+    }
+
+    clearErrors();
+    setEditingStep(null);
+    setStep(previousStep);
+  }
+
   return (
     <div>
-<Heading level={2}>Registration</Heading>
-
-<Text type="supporting" as="p">
-  {stepTitle(step)}
-</Text>
-
-      <Stepper
-        activeStep={activeStepIndex}
-        label="Registration progress"
-        orientation="horizontal"
-      >
-        <Step
-          step={0}
-          label="Team"
-          status={
-            activeStepIndex > 0
-              ? "success"
-              : undefined
-          }
-        />
-
-        <Step
-          step={1}
-          label="Leader"
-          status={
-            activeStepIndex > 1
-              ? "success"
-              : undefined
-          }
-        />
-
-        <Step
-          step={2}
-          label="Member 2"
-          status={
-            activeStepIndex > 2
-              ? "success"
-              : undefined
-          }
-        />
-
-        <Step
-          step={3}
-          label="Member 3"
-          status={
-            activeStepIndex > 3
-              ? "success"
-              : undefined
-          }
-        />
-
-        <Step
-          step={4}
-          label="Member 4"
-          isOptional
-          status={
-            activeStepIndex > 4
-              ? "success"
-              : undefined
-          }
-        />
-
-        <Step
-          step={5}
-          label="Review"
-          status={
-            activeStepIndex > 5
-              ? "success"
-              : undefined
-          }
-        />
-
-        {paymentEnabled ? (
-          <Step
-            step={6}
-            label="Payment"
-            status={
-              activeStepIndex > 6
-                ? "success"
-                : undefined
-            }
-          />
-        ) : null}
-      </Stepper>
+<div className={styles.header}>
+        <button
+          type="button"
+          className={styles.back}
+          onClick={goBack}
+          disabled={!previousStep}
+          aria-label="Previous step"
+        >
+          &lt;
+        </button>
+        <div className={styles.progress}>
+          <p className={styles.progressLabel}>
+            {`Step ${activeStepIndex + 1} of ${paymentEnabled ? 7 : 6}`}
+          </p>
+          <div
+            className={styles.progressBar}
+            role="progressbar"
+            aria-label="Registration progress"
+            aria-valuemin={1}
+            aria-valuemax={paymentEnabled ? 7 : 6}
+            aria-valuenow={activeStepIndex + 1}
+          >
+            {Array.from({ length: paymentEnabled ? 7 : 6 }, (_, segment) => (
+              <span
+                key={segment}
+                className={`${styles.progressSegment} ${
+                  segment < activeStepIndex
+                    ? styles.progressSegmentDone
+                    : segment === activeStepIndex
+                      ? styles.progressSegmentActive
+                      : ""
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
 {error ? (
   <Banner
@@ -1426,7 +1469,7 @@ const memberFour = registration.members[3];
       {step === "leader" ? (
         <section aria-labelledby="leader-step-heading">
 <Heading level={3} id="leader-step-heading">
-  Team Leader
+  Team Leader (Team Member 1)
 </Heading>
 
           {renderMemberFields(
@@ -1434,90 +1477,6 @@ const memberFour = registration.members[3];
             "leader",
           )}
           {renderMemberPhoto(0)}
-
-          <Button
-  type="button"
-  variant="secondary"
-  label={
-    leaderVerified
-      ? "Email verified"
-      : resendSeconds > 0
-        ? `Resend code in ${resendSeconds}s`
-        : leaderCodeSent
-          ? "Send code again"
-          : "Send code"
-  }
-  isDisabled={
-    resendSeconds > 0 ||
-    leaderVerified
-  }
-  onClick={handleSendLeaderCode}
->
-  {leaderVerified
-    ? "Email verified"
-    : resendSeconds > 0
-      ? `Resend code in ${resendSeconds}s`
-      : leaderCodeSent
-        ? "Send code again"
-        : "Send code"}
-</Button>
-
-          {leaderCodeSent ? (
-            <div>
-<TextInput
-  id="leader-verification-code"
-  type="text"
-  label="Verification code *"
-  status={
-    leaderCodeError
-      ? {
-          type: "error",
-          message: leaderCodeError,
-        }
-      : undefined
-  }
-                isRequired
-                value={leaderEmailCode}
-                placeholder="6-digit code"
-onChange={(value) => {
-  setLeaderEmailCode(
-    value
-      .replace(/\D/g, "")
-      .slice(0, 6),
-  );
-
-  setLeaderCodeError(null);
-}}
-              />
-
-<Button
-  type="button"
-  variant="secondary"
-  label={
-    leaderVerified
-      ? "Verified"
-      : "Verify code"
-  }
-  isDisabled={
-    leaderEmailCode.length !== 6 ||
-    leaderVerified
-  }
-  onClick={handleVerifyLeaderCode}
->
-  {leaderVerified
-    ? "Verified"
-    : "Verify code"}
-</Button>
-            </div>
-          ) : null}
-
-{leaderVerified ? (
-  <Banner
-    status="success"
-    title="SRM email verified"
-    collapsible={false}
-  />
-) : null}
 
 <Button
   type="button"
@@ -1540,7 +1499,7 @@ onChange={(value) => {
       {step === "member-2" ? (
         <section aria-labelledby="member-two-heading">
   <Heading level={3} id="member-two-heading">
-  Member 2
+  Team Member 2
 </Heading>
 
           {renderMemberFields(
@@ -1575,7 +1534,7 @@ onChange={(value) => {
       {step === "member-3" ? (
         <section aria-labelledby="member-three-heading">
 <Heading level={3} id="member-three-heading">
-  Member 3
+  Team Member 3
 </Heading>
 
           {renderMemberFields(
@@ -1619,7 +1578,7 @@ onChange={(value) => {
       {step === "member-4" ? (
         <section aria-labelledby="member-four-heading">
 <Heading level={3} id="member-four-heading">
-  Member 4
+  Team Member 4
 </Heading>
 
           {registration.members.length < 4 ? (
