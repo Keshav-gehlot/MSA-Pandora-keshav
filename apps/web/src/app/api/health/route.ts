@@ -2,7 +2,7 @@ import { pingDatabase } from "@pandora/db";
 import { getDb } from "../../../lib/cf-db";
 
 // A read-only check an operator can open in a browser: can this deployment reach its database, and which settings
-// does it have? It never returns a value or a message that could carry one, only booleans and an error code.
+// does it have? It never returns a setting value: booleans, the shape of the database URL, and scrubbed error text.
 export const dynamic = "force-dynamic";
 
 const SETTINGS = [
@@ -25,20 +25,51 @@ function scrub(message: string): string {
     .slice(0, 160);
 }
 
+// The shape of the stored database URL with the credentials and the first part of the host removed: enough to compare
+// against a working URL (same kind of host, same port, same options) without revealing anything secret.
+function describeUrl(raw: string | undefined) {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return {
+      protocol: url.protocol,
+      host: url.hostname.split(".").slice(1).join(".") || "(single label)",
+      port: url.port || "(default)",
+      database: url.pathname.slice(1),
+      options: [...url.searchParams.keys()],
+    };
+  } catch {
+    return "unparseable";
+  }
+}
+
+// Drizzle wraps the driver's error ("Failed query: ..."); the real reason is on the cause chain.
+function describeError(error: unknown) {
+  const chain: Array<{ name: string; code?: string; message: string }> = [];
+  let current: unknown = error;
+  for (let depth = 0; current instanceof Error && depth < 4; depth += 1) {
+    const code = (current as { code?: unknown }).code;
+    chain.push({
+      name: current.name,
+      code: typeof code === "string" ? code : undefined,
+      message: scrub(current.message),
+    });
+    current = (current as { cause?: unknown }).cause;
+  }
+  return chain;
+}
+
 export async function GET() {
   const settings = Object.fromEntries(SETTINGS.map((name) => [name, Boolean(process.env[name])]));
-  let database: { ok: true } | { ok: false; error: string; code?: string; message?: string };
+  let database: { ok: true } | { ok: false; errors: ReturnType<typeof describeError> };
   try {
     await pingDatabase(await getDb());
     database = { ok: true };
   } catch (error) {
-    const code = (error as { code?: unknown } | null)?.code;
-    database = {
-      ok: false,
-      error: error instanceof Error ? error.name : "unknown",
-      code: typeof code === "string" ? code : undefined,
-      message: error instanceof Error ? scrub(error.message) : undefined,
-    };
+    database = { ok: false, errors: describeError(error) };
   }
-  return Response.json({ database, settings }, { status: database.ok ? 200 : 503, headers: { "cache-control": "no-store" } });
+  return Response.json(
+    { database, settings, connection: describeUrl(process.env.DATABASE_URL) },
+    { status: database.ok ? 200 : 503, headers: { "cache-control": "no-store" } },
+  );
 }
